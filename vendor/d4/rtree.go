@@ -56,7 +56,7 @@ const (
 	USE_SPHERICAL_VOLUME = true // Better split classification, may be slower on some systems
 )
 
-type ResultCallback func(dataID interface{}, context interface{}) bool
+type ResultCallback func(dataID, context interface{}) bool
 
 var unitSphereVolume float64
 

@@ -21,7 +21,7 @@ gen(){
 }
 
 for i in {1..4}; do 
-	gen $i true
+	#gen $i true
 	gen $i false
 done
 
