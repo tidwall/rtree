@@ -9,7 +9,6 @@ TITLE
 DESCRIPTION
 
 	A Go version of the RTree algorithm.
-	For more information please read the comments in rtree.go
 
 AUTHORS
 
@@ -379,7 +378,7 @@ func DisconnectBranch(node *Node, index int) {
 
 	// Remove element by swapping with the last element to prevent gaps in array
 	node.branch[index] = node.branch[node.count-1]
-
+	node.branch[node.count-1].data = nil
 	node.count--
 }
 
