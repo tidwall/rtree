@@ -36,6 +36,20 @@ func tRandRect(dims int) *tRect {
 	}
 	return &r
 }
+
+type tPoint struct {
+	x, y float64
+}
+
+func (r *tPoint) Rect() (min, max []float64) {
+	return []float64{r.x, r.y}, []float64{r.x, r.y}
+}
+func tRandPoint() *tPoint {
+	return &tPoint{
+		rand.Float64()*200 - 100,
+		rand.Float64()*200 - 100,
+	}
+}
 func TestRTree(t *testing.T) {
 	tr := New()
 
@@ -59,7 +73,7 @@ func TestRTree(t *testing.T) {
 	}
 }
 
-func TestInsert(t *testing.T) {
+func TestInsertDelete(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	n := 50000
 	tr := New()
@@ -88,6 +102,36 @@ func TestInsert(t *testing.T) {
 	}
 	for _, r := range r2arr {
 		tr.Remove(r)
+	}
+	total := tr.Count() + count
+	if total != n {
+		t.Fatalf("expected %v, got %v", n, total)
+	}
+}
+func TestPoints(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	n := 100000
+	tr := New()
+	var points []*tPoint
+	for i := 0; i < n; i++ {
+		r := tRandPoint()
+		points = append(points, r)
+		tr.Insert(r)
+	}
+	if tr.Count() != n {
+		t.Fatalf("expecting %v, got %v", n, tr.Count())
+	}
+	var count int
+	tr.Search(&tRect{-100, -100, -100, -100, 100, 100, 100, 100}, func(item Item) bool {
+		count++
+		return true
+	})
+
+	if count != n {
+		t.Fatalf("expecting %v, got %v", n, count)
+	}
+	for _, p := range points {
+		tr.Remove(p)
 	}
 	total := tr.Count() + count
 	if total != n {
