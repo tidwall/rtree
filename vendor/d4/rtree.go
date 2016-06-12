@@ -73,8 +73,7 @@ func init() {
 }
 
 type RTree struct {
-	root             *Node   ///< Root of tree
-	unitSphereVolume float64 ///< Unit sphere constant for required number of dimensions
+	root *Node ///< Root of tree
 }
 
 /// Minimal bounding rectangle (n-dimensional)
@@ -154,7 +153,6 @@ func (tr *RTree) Insert(min, max [NUMDIMS]float64, dataId interface{}) {
 	} //_DEBUG
 	var branch Branch
 	branch.data = dataId
-	branch.child = nil
 	for axis := 0; axis < NUMDIMS; axis++ {
 		branch.rect.min[axis] = min[axis]
 		branch.rect.max[axis] = max[axis]
@@ -379,6 +377,7 @@ func DisconnectBranch(node *Node, index int) {
 	// Remove element by swapping with the last element to prevent gaps in array
 	node.branch[index] = node.branch[node.count-1]
 	node.branch[node.count-1].data = nil
+	node.branch[node.count-1].child = nil
 	node.count--
 }
 

@@ -52,14 +52,14 @@ func tRandPoint() *tPoint {
 }
 func TestRTree(t *testing.T) {
 	tr := New()
-
+	zeroPoint := &tRect{0, 0, 0, 0}
 	tr.Insert(&tRect{10, 10, 10, 10, 20, 20, 20, 20})
 	tr.Insert(&tRect{10, 10, 10, 20, 20, 20})
 	tr.Insert(&tRect{10, 10, 20, 20})
 	tr.Insert(&tRect{10, 20})
-
-	if tr.Count() != 4 {
-		t.Fatalf("expecting %v, got %v", 4, tr.Count())
+	tr.Insert(zeroPoint)
+	if tr.Count() != 5 {
+		t.Fatalf("expecting %v, got %v", 5, tr.Count())
 	}
 
 	var count int
@@ -68,6 +68,15 @@ func TestRTree(t *testing.T) {
 		return true
 	})
 
+	if count != 3 {
+		t.Fatalf("expecting %v, got %v", 3, count)
+	}
+	tr.Remove(zeroPoint)
+	count = 0
+	tr.Search(&tRect{0, 0, 0, 100, 100, 5}, func(item Item) bool {
+		count++
+		return true
+	})
 	if count != 2 {
 		t.Fatalf("expecting %v, got %v", 2, count)
 	}
@@ -100,8 +109,8 @@ func TestInsertDelete(t *testing.T) {
 	if p < .23 || p > .27 {
 		t.Fatalf("bad random range, expected between 0.24-0.26, got %v", p)
 	}
-	for _, r := range r2arr {
-		tr.Remove(r)
+	for _, i := range rand.Perm(len(r2arr)) {
+		tr.Remove(r2arr[i])
 	}
 	total := tr.Count() + count
 	if total != n {
@@ -110,7 +119,7 @@ func TestInsertDelete(t *testing.T) {
 }
 func TestPoints(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	n := 100000
+	n := 25000
 	tr := New()
 	var points []*tPoint
 	for i := 0; i < n; i++ {
@@ -130,11 +139,31 @@ func TestPoints(t *testing.T) {
 	if count != n {
 		t.Fatalf("expecting %v, got %v", n, count)
 	}
-	for _, p := range points {
-		tr.Remove(p)
+	for _, i := range rand.Perm(len(points)) {
+		tr.Remove(points[i])
 	}
 	total := tr.Count() + count
 	if total != n {
 		t.Fatalf("expected %v, got %v", n, total)
 	}
+}
+func BenchmarkInsert(t *testing.B) {
+	t.StopTimer()
+	rand.Seed(time.Now().UnixNano())
+	tr := New()
+	var points []*tPoint
+	for i := 0; i < t.N; i++ {
+		points = append(points, tRandPoint())
+	}
+	t.StartTimer()
+	for i := 0; i < t.N; i++ {
+		tr.Insert(points[i])
+	}
+	t.StopTimer()
+	count := tr.Count()
+	if count != t.N {
+		t.Fatalf("expected %v, got %v", t.N, count)
+	}
+
+	t.StartTimer()
 }
