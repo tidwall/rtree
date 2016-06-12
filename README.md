@@ -2,7 +2,7 @@ RTree implementation for Go
 ===========================
 
 [![Build Status](https://travis-ci.org/tidwall/rtree.svg?branch=master)](https://travis-ci.org/tidwall/rtree)
-[![GoDoc](https://godoc.org/github.com/tidwall/rtree/client?status.svg)](https://godoc.org/github.com/tidwall/rtree/client)
+[![GoDoc](https://godoc.org/github.com/tidwall/rtree?status.svg)](https://godoc.org/github.com/tidwall/rtree)
 
 This package provides an in-memory R-Tree implementation for Go, useful as a spatial data structure. It has support for 1-4 dimensions, and can store and search multidimensions interchangably in the same tree.
 
