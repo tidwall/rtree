@@ -57,20 +57,15 @@ const (
 
 type ResultCallback func(dataID interface{}) bool
 
-var unitSphereVolume float64
-
-func init() {
-	// Precomputed volumes of the unit spheres for the first few dimensions
-	unitSphereVolume = []float64{
-		0.000000, 2.000000, 3.141593, // Dimension  0,1,2
-		4.188790, 4.934802, 5.263789, // Dimension  3,4,5
-		5.167713, 4.724766, 4.058712, // Dimension  6,7,8
-		3.298509, 2.550164, 1.884104, // Dimension  9,10,11
-		1.335263, 0.910629, 0.599265, // Dimension  12,13,14
-		0.381443, 0.235331, 0.140981, // Dimension  15,16,17
-		0.082146, 0.046622, 0.025807, // Dimension  18,19,20
-	}[NUMDIMS]
-}
+var unitSphereVolume = []float64{
+	0.000000, 2.000000, 3.141593, // Dimension  0,1,2
+	4.188790, 4.934802, 5.263789, // Dimension  3,4,5
+	5.167713, 4.724766, 4.058712, // Dimension  6,7,8
+	3.298509, 2.550164, 1.884104, // Dimension  9,10,11
+	1.335263, 0.910629, 0.599265, // Dimension  12,13,14
+	0.381443, 0.235331, 0.140981, // Dimension  15,16,17
+	0.082146, 0.046622, 0.025807, // Dimension  18,19,20
+}[NUMDIMS]
 
 type RTree struct {
 	root *Node ///< Root of tree
