@@ -152,13 +152,13 @@ func (tr *RTree) search1(min, max []float64, iter Iterator) bool {
 		}
 	}
 	ended := false
-	tr.tr1.Search(amin, amax, func(dataID, context interface{}) bool {
+	tr.tr1.Search(amin, amax, func(dataID interface{}) bool {
 		if !iter(dataID.(Item)) {
 			ended = true
 			return false
 		}
 		return true
-	}, nil)
+	})
 	return !ended
 }
 func (tr *RTree) search2(min, max []float64, iter Iterator) bool {
@@ -173,13 +173,13 @@ func (tr *RTree) search2(min, max []float64, iter Iterator) bool {
 		}
 	}
 	ended := false
-	tr.tr2.Search(amin, amax, func(dataID, context interface{}) bool {
+	tr.tr2.Search(amin, amax, func(dataID interface{}) bool {
 		if !iter(dataID.(Item)) {
 			ended = true
 			return false
 		}
 		return true
-	}, nil)
+	})
 	return !ended
 }
 func (tr *RTree) search3(min, max []float64, iter Iterator) bool {
@@ -194,13 +194,13 @@ func (tr *RTree) search3(min, max []float64, iter Iterator) bool {
 		}
 	}
 	ended := false
-	tr.tr3.Search(amin, amax, func(dataID, context interface{}) bool {
+	tr.tr3.Search(amin, amax, func(dataID interface{}) bool {
 		if !iter(dataID.(Item)) {
 			ended = true
 			return false
 		}
 		return true
-	}, nil)
+	})
 	return !ended
 }
 func (tr *RTree) search4(min, max []float64, iter Iterator) bool {
@@ -215,12 +215,12 @@ func (tr *RTree) search4(min, max []float64, iter Iterator) bool {
 		}
 	}
 	ended := false
-	tr.tr4.Search(amin, amax, func(dataID, context interface{}) bool {
+	tr.tr4.Search(amin, amax, func(dataID interface{}) bool {
 		if !iter(dataID.(Item)) {
 			ended = true
 			return false
 		}
 		return true
-	}, nil)
+	})
 	return !ended
 }

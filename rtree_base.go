@@ -55,7 +55,7 @@ const (
 	USE_SPHERICAL_VOLUME = true // Better split classification, may be slower on some systems
 )
 
-type ResultCallback func(dataID, context interface{}) bool
+type ResultCallback func(dataID interface{}) bool
 
 var unitSphereVolume float64
 
@@ -185,7 +185,7 @@ func (tr *RTree) Remove(min, max [NUMDIMS]float64, dataId interface{}) {
 /// \param a_resultCallback Callback function to return result.  Callback should return 'true' to continue searching
 /// \param a_context User context to pass as parameter to a_resultCallback
 /// \return Returns the number of entries found
-func (tr *RTree) Search(min, max [NUMDIMS]float64, resultCallback ResultCallback, context interface{}) int {
+func (tr *RTree) Search(min, max [NUMDIMS]float64, resultCallback ResultCallback) int {
 	if _DEBUG {
 		for index := 0; index < NUMDIMS; index++ {
 			ASSERT(min[index] <= max[index])
@@ -196,10 +196,7 @@ func (tr *RTree) Search(min, max [NUMDIMS]float64, resultCallback ResultCallback
 		rect.min[axis] = min[axis]
 		rect.max[axis] = max[axis]
 	}
-	// NOTE: May want to return search result another way, perhaps returning the number of found elements here.
-
-	foundCount := 0
-	Search(tr.root, &rect, &foundCount, resultCallback, context)
+	foundCount, _ := Search(tr.root, rect, 0, resultCallback)
 	return foundCount
 }
 
@@ -728,7 +725,7 @@ func RemoveRectRec(rect *Rect, id interface{}, node *Node, listNode **ListNode) 
 
 	if node.IsInternalNode() { // not a leaf node
 		for index := 0; index < node.count; index++ {
-			if Overlap(rect, &(node.branch[index].rect)) {
+			if Overlap(*rect, node.branch[index].rect) {
 				if !RemoveRectRec(rect, id, node.branch[index].child, listNode) {
 					if node.branch[index].child.count >= MINNODES {
 						// child removed, just resize parent rect
@@ -755,9 +752,7 @@ func RemoveRectRec(rect *Rect, id interface{}, node *Node, listNode **ListNode) 
 }
 
 // Decide whether two rectangles overlap.
-func Overlap(rectA, rectB *Rect) bool {
-	ASSERT(rectA != nil && rectB != nil)
-
+func Overlap(rectA, rectB Rect) bool {
 	for index := 0; index < NUMDIMS; index++ {
 		if rectA.min[index] > rectB.max[index] ||
 			rectB.min[index] > rectA.max[index] {
@@ -777,37 +772,34 @@ func ReInsert(node *Node, listNode **ListNode) {
 }
 
 // Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
-func Search(node *Node, rect *Rect, foundCount *int, resultCallback ResultCallback, context interface{}) bool {
+func Search(node *Node, rect Rect, foundCount int, resultCallback ResultCallback) (int, bool) {
 	ASSERT(node != nil)
 	ASSERT(node.level >= 0)
-	ASSERT(rect != nil)
 
 	if node.IsInternalNode() {
 		// This is an internal node in the tree
 		for index := 0; index < node.count; index++ {
-			if Overlap(rect, &node.branch[index].rect) {
-				if !Search(node.branch[index].child, rect, foundCount, resultCallback, context) {
+			if Overlap(rect, node.branch[index].rect) {
+				var ok bool
+				foundCount, ok = Search(node.branch[index].child, rect, foundCount, resultCallback)
+				if !ok {
 					// The callback indicated to stop searching
-					return false
+					return foundCount, false
 				}
 			}
 		}
 	} else {
 		// This is a leaf node
 		for index := 0; index < node.count; index++ {
-			if Overlap(rect, &node.branch[index].rect) {
+			if Overlap(rect, node.branch[index].rect) {
 				id := node.branch[index].data
-
-				// NOTE: There are different ways to return results.  Here's where to modify
-
-				*foundCount++
-				if !resultCallback(id, context) {
-					return false // Don't continue searching
+				foundCount++
+				if !resultCallback(id) {
+					return foundCount, false // Don't continue searching
 				}
 
 			}
 		}
 	}
-
-	return true // Continue searching
+	return foundCount, true // Continue searching
 }
