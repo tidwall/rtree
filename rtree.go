@@ -10,18 +10,20 @@ import (
 
 type Iterator func(item Item) bool
 type Item interface {
-	Rect() (min []float64, max []float64)
+	Rect(ctx interface{}) (min []float64, max []float64)
 }
 
 type RTree struct {
+	ctx interface{}
 	tr1 *d1.RTree
 	tr2 *d2.RTree
 	tr3 *d3.RTree
 	tr4 *d4.RTree
 }
 
-func New() *RTree {
+func New(ctx interface{}) *RTree {
 	return &RTree{
+		ctx: ctx,
 		tr1: d1.NewRTree(),
 		tr2: d2.NewRTree(),
 		tr3: d3.NewRTree(),
@@ -33,7 +35,7 @@ func (tr *RTree) Insert(item Item) {
 	if item == nil {
 		panic("nil item being added to RTree")
 	}
-	min, max := item.Rect()
+	min, max := item.Rect(tr.ctx)
 	if len(min) != len(max) {
 		panic("invalid item rectangle")
 	}
@@ -71,7 +73,7 @@ func (tr *RTree) Remove(item Item) {
 	if item == nil {
 		panic("nil item being added to RTree")
 	}
-	min, max := item.Rect()
+	min, max := item.Rect(tr.ctx)
 	if len(min) != len(max) {
 		panic("invalid item rectangle")
 	}
@@ -117,7 +119,7 @@ func (tr *RTree) Search(bounds Item, iter Iterator) {
 	if bounds == nil {
 		panic("nil item being added to RTree")
 	}
-	min, max := bounds.Rect()
+	min, max := bounds.Rect(tr.ctx)
 	if len(min) != len(max) {
 		panic("invalid item rectangle")
 	}

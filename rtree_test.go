@@ -12,12 +12,12 @@ type tRect []float64
 func (r *tRect) Arr() []float64 {
 	return []float64(*r)
 }
-func (r *tRect) Rect() (min, max []float64) {
+func (r *tRect) Rect(ctx interface{}) (min, max []float64) {
 	return r.Arr()[:len(r.Arr())/2], r.Arr()[len(r.Arr())/2:]
 }
 
 func (r *tRect) String() string {
-	min, max := r.Rect()
+	min, max := r.Rect(nil)
 	return fmt.Sprintf("%v,%v", min, max)
 }
 func tRandRect(dims int) *tRect {
@@ -41,7 +41,7 @@ type tPoint struct {
 	x, y float64
 }
 
-func (r *tPoint) Rect() (min, max []float64) {
+func (r *tPoint) Rect(ctx interface{}) (min, max []float64) {
 	return []float64{r.x, r.y}, []float64{r.x, r.y}
 }
 func tRandPoint() *tPoint {
@@ -51,7 +51,7 @@ func tRandPoint() *tPoint {
 	}
 }
 func TestRTree(t *testing.T) {
-	tr := New()
+	tr := New("hello")
 	zeroPoint := &tRect{0, 0, 0, 0}
 	tr.Insert(&tRect{10, 10, 10, 10, 20, 20, 20, 20})
 	tr.Insert(&tRect{10, 10, 10, 20, 20, 20})
@@ -85,7 +85,7 @@ func TestRTree(t *testing.T) {
 func TestInsertDelete(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	n := 50000
-	tr := New()
+	tr := New(nil)
 	var r2arr []*tRect
 	for i := 0; i < n; i++ {
 		r := tRandRect(-1)
@@ -120,7 +120,7 @@ func TestInsertDelete(t *testing.T) {
 func TestPoints(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	n := 25000
-	tr := New()
+	tr := New(nil)
 	var points []*tPoint
 	for i := 0; i < n; i++ {
 		r := tRandPoint()
@@ -150,7 +150,7 @@ func TestPoints(t *testing.T) {
 func BenchmarkInsert(t *testing.B) {
 	t.StopTimer()
 	rand.Seed(time.Now().UnixNano())
-	tr := New()
+	tr := New(nil)
 	var points []*tPoint
 	for i := 0; i < t.N; i++ {
 		points = append(points, tRandPoint())
