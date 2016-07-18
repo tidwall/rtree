@@ -37,10 +37,12 @@ func (tr *RTree) Insert(item Item) {
 	}
 	min, max := item.Rect(tr.ctx)
 	if len(min) != len(max) {
+		return // just return
 		panic("invalid item rectangle")
 	}
 	switch len(min) {
 	default:
+		return // just return
 		panic("invalid dimension")
 	case 1:
 		var amin, amax [1]float64
@@ -75,10 +77,12 @@ func (tr *RTree) Remove(item Item) {
 	}
 	min, max := item.Rect(tr.ctx)
 	if len(min) != len(max) {
+		return // just return
 		panic("invalid item rectangle")
 	}
 	switch len(min) {
 	default:
+		return // just return
 		panic("invalid dimension")
 	case 1:
 		var amin, amax [1]float64
@@ -117,14 +121,16 @@ func (tr *RTree) Count() int {
 }
 func (tr *RTree) Search(bounds Item, iter Iterator) {
 	if bounds == nil {
-		panic("nil item being added to RTree")
+		panic("nil bounds being used for search")
 	}
 	min, max := bounds.Rect(tr.ctx)
 	if len(min) != len(max) {
+		return // just return
 		panic("invalid item rectangle")
 	}
 	switch len(min) {
 	default:
+		return // just return
 		panic("invalid dimension")
 	case 1, 2, 3, 4:
 	}
