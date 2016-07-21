@@ -1,4 +1,4 @@
-//generated; DO NOT EDIT!
+// generated; DO NOT EDIT!
 
 /*
 
@@ -49,7 +49,7 @@ func ASSERT(condition bool) {
 
 const (
 	_DEBUG               = false
-	NUMDIMS              = 3
+	NUMDIMS              = 8
 	MAXNODES             = 8
 	MINNODES             = MAXNODES / 2
 	USE_SPHERICAL_VOLUME = true // Better split classification, may be slower on some systems
@@ -480,8 +480,10 @@ func RectSphericalVolume(rect *Rect) float64 {
 
 	radius = math.Sqrt(sumOfSquares)
 
-	// Pow maybe slow, so test for common dims like 2,3 and just use x*x, x*x*x.
-	if NUMDIMS == 4 {
+	// Pow maybe slow, so test for common dims just use x*x, x*x*x.
+	if NUMDIMS == 5 {
+		return (radius * radius * radius * radius * radius * unitSphereVolume)
+	} else if NUMDIMS == 4 {
 		return (radius * radius * radius * radius * unitSphereVolume)
 	} else if NUMDIMS == 3 {
 		return (radius * radius * radius * unitSphereVolume)
