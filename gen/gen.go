@@ -16,7 +16,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "turn on debug tracing")
 	flag.Parse()
 	// process rtree.go
-	data, err := ioutil.ReadFile("rtree.go")
+	data, err := ioutil.ReadFile("rtree.go.gen")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func main() {
 	}
 	for i := 0; i < dims; i++ {
 		sdim := strconv.FormatInt(int64(i+1), 10)
-		data, err := ioutil.ReadFile("rtree_base.go")
+		data, err := ioutil.ReadFile("rtree_base.go.gen")
 		if err != nil {
 			log.Fatal(err)
 		}
