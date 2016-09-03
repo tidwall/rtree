@@ -58,26 +58,26 @@ type RTree struct {
 func New(ctx interface{}) *RTree {
 	return &RTree{
 		ctx: ctx,
-		tr1: d1.NewRTree(),
-		tr2: d2.NewRTree(),
-		tr3: d3.NewRTree(),
-		tr4: d4.NewRTree(),
-		tr5: d5.NewRTree(),
-		tr6: d6.NewRTree(),
-		tr7: d7.NewRTree(),
-		tr8: d8.NewRTree(),
-		tr9: d9.NewRTree(),
-		tr10: d10.NewRTree(),
-		tr11: d11.NewRTree(),
-		tr12: d12.NewRTree(),
-		tr13: d13.NewRTree(),
-		tr14: d14.NewRTree(),
-		tr15: d15.NewRTree(),
-		tr16: d16.NewRTree(),
-		tr17: d17.NewRTree(),
-		tr18: d18.NewRTree(),
-		tr19: d19.NewRTree(),
-		tr20: d20.NewRTree(),
+		tr1: d1.New(),
+		tr2: d2.New(),
+		tr3: d3.New(),
+		tr4: d4.New(),
+		tr5: d5.New(),
+		tr6: d6.New(),
+		tr7: d7.New(),
+		tr8: d8.New(),
+		tr9: d9.New(),
+		tr10: d10.New(),
+		tr11: d11.New(),
+		tr12: d12.New(),
+		tr13: d13.New(),
+		tr14: d14.New(),
+		tr15: d15.New(),
+		tr16: d16.New(),
+		tr17: d17.New(),
+		tr18: d18.New(),
+		tr19: d19.New(),
+		tr20: d20.New(),
 	}
 }
 
@@ -353,26 +353,26 @@ func (tr *RTree) Remove(item Item) {
 	}
 }
 func (tr *RTree) Reset() {
-	tr.tr1 = d1.NewRTree()
-	tr.tr2 = d2.NewRTree()
-	tr.tr3 = d3.NewRTree()
-	tr.tr4 = d4.NewRTree()
-	tr.tr5 = d5.NewRTree()
-	tr.tr6 = d6.NewRTree()
-	tr.tr7 = d7.NewRTree()
-	tr.tr8 = d8.NewRTree()
-	tr.tr9 = d9.NewRTree()
-	tr.tr10 = d10.NewRTree()
-	tr.tr11 = d11.NewRTree()
-	tr.tr12 = d12.NewRTree()
-	tr.tr13 = d13.NewRTree()
-	tr.tr14 = d14.NewRTree()
-	tr.tr15 = d15.NewRTree()
-	tr.tr16 = d16.NewRTree()
-	tr.tr17 = d17.NewRTree()
-	tr.tr18 = d18.NewRTree()
-	tr.tr19 = d19.NewRTree()
-	tr.tr20 = d20.NewRTree()
+	tr.tr1 = d1.New()
+	tr.tr2 = d2.New()
+	tr.tr3 = d3.New()
+	tr.tr4 = d4.New()
+	tr.tr5 = d5.New()
+	tr.tr6 = d6.New()
+	tr.tr7 = d7.New()
+	tr.tr8 = d8.New()
+	tr.tr9 = d9.New()
+	tr.tr10 = d10.New()
+	tr.tr11 = d11.New()
+	tr.tr12 = d12.New()
+	tr.tr13 = d13.New()
+	tr.tr14 = d14.New()
+	tr.tr15 = d15.New()
+	tr.tr16 = d16.New()
+	tr.tr17 = d17.New()
+	tr.tr18 = d18.New()
+	tr.tr19 = d19.New()
+	tr.tr20 = d20.New()
 }
 func (tr *RTree) Count() int {
 	count := 0

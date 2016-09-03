@@ -25,7 +25,7 @@ func New(ctx interface{}) *RTree {
 	return &RTree{
 		ctx: ctx,
 		// BEGIN
-		trTNUMDIMS: dTNUMDIMS.NewRTree(),
+		trTNUMDIMS: dTNUMDIMS.New(),
 		// END
 	}
 }
@@ -79,7 +79,7 @@ func (tr *RTree) Remove(item Item) {
 }
 func (tr *RTree) Reset() {
 	// BEGIN
-	tr.trTNUMDIMS = dTNUMDIMS.NewRTree()
+	tr.trTNUMDIMS = dTNUMDIMS.New()
 	// END
 }
 func (tr *RTree) Count() int {
