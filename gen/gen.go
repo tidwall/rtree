@@ -58,9 +58,6 @@ func main() {
 			output += line + "\n"
 		}
 	}
-	if err := ioutil.WriteFile("../rtree.go", []byte(output), 0666); err != nil {
-		log.Fatal(err)
-	}
 	// process rtree_base.go
 	if err := os.RemoveAll("../dims"); err != nil {
 		log.Fatal(err)
@@ -71,19 +68,20 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		data = []byte(strings.Replace(string(data), "// +build ignore", "// generated; DO NOT EDIT!", -1))
+		data = []byte(strings.Split(string(data), "// FILE_START")[1])
 		if debug {
 			data = []byte(strings.Replace(string(data), "TDEBUG", "true", -1))
 		} else {
 			data = []byte(strings.Replace(string(data), "TDEBUG", "false", -1))
 		}
 		data = []byte(strings.Replace(string(data), "TNUMDIMS", strconv.FormatInt(int64(i+1), 10), -1))
+		data = []byte(strings.Replace(string(data), "DD_", "d"+strconv.FormatInt(int64(i+1), 10), -1))
 		if err := os.MkdirAll("../dims/d"+sdim, 0777); err != nil {
 			log.Fatal(err)
 		}
-		if err := ioutil.WriteFile("../dims/d"+sdim+"/rtree.go", data, 0666); err != nil {
-			log.Fatal(err)
-		}
+		output = string(append([]byte(output), data...))
 	}
-
+	if err := ioutil.WriteFile("../rtree.go", []byte(output), 0666); err != nil {
+		log.Fatal(err)
+	}
 }

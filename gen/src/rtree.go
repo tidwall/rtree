@@ -1,13 +1,8 @@
 // +build ignore
+
 package rtree
 
-import (
-	"math"
-
-	// BEGIN
-	dTNUMDIMS "github.com/tidwall/rtree/dims/dTNUMDIMS"
-	// END
-)
+import "math"
 
 type Iterator func(item Item) bool
 type Item interface {
@@ -17,7 +12,7 @@ type Item interface {
 type RTree struct {
 	ctx interface{}
 	// BEGIN
-	trTNUMDIMS *dTNUMDIMS.RTree
+	trTNUMDIMS *dTNUMDIMSRTree
 	// END
 }
 
@@ -25,7 +20,7 @@ func New(ctx interface{}) *RTree {
 	return &RTree{
 		ctx: ctx,
 		// BEGIN
-		trTNUMDIMS: dTNUMDIMS.New(),
+		trTNUMDIMS: dTNUMDIMSNew(),
 		// END
 	}
 }
@@ -79,7 +74,7 @@ func (tr *RTree) Remove(item Item) {
 }
 func (tr *RTree) Reset() {
 	// BEGIN
-	tr.trTNUMDIMS = dTNUMDIMS.New()
+	tr.trTNUMDIMS = dTNUMDIMSNew()
 	// END
 }
 func (tr *RTree) Count() int {
