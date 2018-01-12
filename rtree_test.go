@@ -167,3 +167,59 @@ func BenchmarkInsert(t *testing.B) {
 
 	t.StartTimer()
 }
+
+func TestKNN(t *testing.T) {
+	n := 25000
+	tr := New(nil)
+	var points []*tPoint
+	rand.Seed(1)
+	for i := 0; i < n; i++ {
+		r := tRandPoint()
+		points = append(points, r)
+		tr.Insert(r)
+	}
+	if tr.Count() != n {
+		t.Fatalf("expecting %v, got %v", n, tr.Count())
+	}
+	var count int
+	tr.Search(&tRect{-100, -100, -100, -100, 100, 100, 100, 100}, func(item Item) bool {
+		count++
+		return true
+	})
+	var pdist float64
+	var i int
+	center := []float64{50, 50}
+	centerRect := &tRect{center[0], center[1], center[0], center[1]}
+	tr.KNN(centerRect, true, func(item Item, dist float64) bool {
+		dist2 := boxDistPoint(center, item)
+		if i > 0 && dist2 < pdist {
+			t.Fatal("out of order")
+		}
+		pdist = dist
+		i++
+		return true
+	})
+	if i != n {
+		t.Fatal("mismatch")
+	}
+}
+
+func boxDistPoint(point []float64, item Item) float64 {
+	var dist float64
+	min, max := item.Rect(nil)
+	for i := 0; i < len(point); i++ {
+		d := axisDist(point[i], min[i], max[i])
+		dist += d * d
+	}
+	return dist
+}
+
+func axisDist(k, min, max float64) float64 {
+	if k < min {
+		return min - k
+	}
+	if k <= max {
+		return 0
+	}
+	return k - max
+}

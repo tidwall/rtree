@@ -14,6 +14,7 @@ Authors
 * 1995 Sphere volume fix for degeneracy problem submitted by Paul Brook
 * 2004 Templated C++ port by Greg Douglas
 * 2016 Go port by Josh Baker
+* 2018 Added kNN and merged in some of the RBush logic by Vladimir Agafonkin
 
 License
 -------
