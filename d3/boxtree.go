@@ -1,7 +1,8 @@
 package d3
 
+const dims = 3
+
 const (
-	dims       = 3
 	maxEntries = 16
 	minEntries = maxEntries * 40 / 100
 )
@@ -199,8 +200,7 @@ func (r *box) splitLargestAxisEdgeSnap(right *box) {
 	rightNode := new(node)
 	right.data = rightNode
 
-	var equalsCount int
-
+	var equals []box
 	for i := 0; i < leftNode.count; i++ {
 		minDist := leftNode.boxes[i].min[axis] - left.min[axis]
 		maxDist := left.max[axis] - leftNode.boxes[i].max[axis]
@@ -211,29 +211,23 @@ func (r *box) splitLargestAxisEdgeSnap(right *box) {
 				// move to right
 				rightNode.boxes[rightNode.count] = leftNode.boxes[i]
 				rightNode.count++
-				leftNode.boxes[i] = leftNode.boxes[leftNode.count-1]
-				leftNode.boxes[leftNode.count-1].data = nil
 			} else {
 				// move to equals, at the end of the left array
-				tbox := leftNode.boxes[i]
-				leftNode.boxes[i] = leftNode.boxes[leftNode.count-1]
-				leftNode.boxes[leftNode.count-1].data = nil
-				leftNode.boxes[maxEntries+1-equalsCount-1] = tbox
-				equalsCount++
+				equals = append(equals, leftNode.boxes[i])
 			}
+			leftNode.boxes[i] = leftNode.boxes[leftNode.count-1]
+			leftNode.boxes[leftNode.count-1].data = nil
 			leftNode.count--
 			i--
 		}
 	}
-	for i := maxEntries + 1 - equalsCount; i < maxEntries+1; i++ {
-		if rightNode.count < leftNode.count {
-			rightNode.boxes[rightNode.count] = leftNode.boxes[i]
-			leftNode.boxes[i].data = nil
-			rightNode.count++
-		} else {
-			leftNode.boxes[leftNode.count] = leftNode.boxes[i]
-			leftNode.boxes[i].data = nil
+	for _, b := range equals {
+		if leftNode.count < rightNode.count {
+			leftNode.boxes[leftNode.count] = b
 			leftNode.count++
+		} else {
+			rightNode.boxes[rightNode.count] = b
+			rightNode.count++
 		}
 	}
 	left.recalc()

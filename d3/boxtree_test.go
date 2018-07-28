@@ -1,15 +1,21 @@
 package d3
 
 import (
+	"fmt"
 	"math/rand"
+	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/tidwall/lotsa"
 )
 
 type tBox struct {
-	min [3]float64
-	max [3]float64
+	min [dims]float64
+	max [dims]float64
 }
 
 var boxes []tBox
@@ -27,7 +33,9 @@ func randPoints(N int) []tBox {
 	for i := 0; i < N; i++ {
 		boxes[i].min[0] = rand.Float64()*360 - 180
 		boxes[i].min[1] = rand.Float64()*180 - 90
-		boxes[i].min[2] = rand.Float64()
+		for j := 2; j < dims; j++ {
+			boxes[i].min[j] = rand.Float64()
+		}
 		boxes[i].max = boxes[i].min
 	}
 	return boxes
@@ -38,10 +46,14 @@ func randBoxes(N int) []tBox {
 	for i := 0; i < N; i++ {
 		boxes[i].min[0] = rand.Float64()*360 - 180
 		boxes[i].min[1] = rand.Float64()*180 - 90
-		boxes[i].min[2] = rand.Float64()
+		for j := 2; j < dims; j++ {
+			boxes[i].min[j] = rand.Float64() * 100
+		}
 		boxes[i].max[0] = boxes[i].min[0] + rand.Float64()
 		boxes[i].max[1] = boxes[i].min[1] + rand.Float64()
-		boxes[i].max[2] = boxes[i].min[2] + rand.Float64()
+		for j := 2; j < dims; j++ {
+			boxes[i].max[j] = boxes[i].min[j] + rand.Float64()
+		}
 		if boxes[i].max[0] > 180 || boxes[i].max[1] > 90 {
 			i--
 		}
@@ -168,7 +180,11 @@ func testBoxesVarious(t *testing.T, boxes []tBox, label string) {
 		}
 	}
 
-	centerMin, centerMax := []float64{-18, -9, -0.5}, []float64{18, 9, 0.5}
+	centerMin, centerMax := []float64{-18, -9}, []float64{18, 9}
+	for j := 2; j < dims; j++ {
+		centerMin = append(centerMin, -10)
+		centerMax = append(centerMax, 10)
+	}
 
 	/////////////////////////////////////////
 	// search for 10% of the items
@@ -304,4 +320,64 @@ func TestRandomBoxes(t *testing.T) {
 
 func TestRandomPoints(t *testing.T) {
 	testBoxesVarious(t, randPoints(10000), "points")
+}
+
+func (r *box) boxstr() string {
+	var b []byte
+	b = append(b, '[', '[')
+	for i := 0; i < len(r.min); i++ {
+		if i != 0 {
+			b = append(b, ' ')
+		}
+		b = strconv.AppendFloat(b, r.min[i], 'f', -1, 64)
+	}
+	b = append(b, ']', '[')
+	for i := 0; i < len(r.max); i++ {
+		if i != 0 {
+			b = append(b, ' ')
+		}
+		b = strconv.AppendFloat(b, r.max[i], 'f', -1, 64)
+	}
+	b = append(b, ']', ']')
+	return string(b)
+}
+
+func (r *box) print(height, indent int) {
+	fmt.Printf("%s%s", strings.Repeat("  ", indent), r.boxstr())
+	if height == 0 {
+		fmt.Printf("\t'%v'\n", r.data)
+	} else {
+		fmt.Printf("\n")
+		for i := 0; i < r.data.(*node).count; i++ {
+			r.data.(*node).boxes[i].print(height-1, indent+1)
+		}
+	}
+
+}
+
+func (tr BoxTree) print() {
+	if tr.root.data == nil {
+		println("EMPTY TREE")
+		return
+	}
+	tr.root.print(tr.height+1, 0)
+}
+
+func TestZeroPoints(t *testing.T) {
+	N := 10000
+	var tr BoxTree
+	pt := make([]float64, dims)
+	for i := 0; i < N; i++ {
+		tr.Insert(pt, nil, i)
+	}
+}
+
+func BenchmarkRandomInsert(b *testing.B) {
+	var tr BoxTree
+	boxes := randBoxes(b.N)
+	b.ResetTimer()
+	lotsa.Output = os.Stdout
+	lotsa.Ops(b.N, 1, func(i, _ int) {
+		tr.Insert(boxes[i].min[:], boxes[i].max[:], i)
+	})
 }
