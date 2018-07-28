@@ -3,14 +3,11 @@ package d2
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/tidwall/lotsa"
 )
 
 type tBox struct {
@@ -376,8 +373,7 @@ func BenchmarkRandomInsert(b *testing.B) {
 	var tr BoxTree
 	boxes := randBoxes(b.N)
 	b.ResetTimer()
-	lotsa.Output = os.Stdout
-	lotsa.Ops(b.N, 1, func(i, _ int) {
+	for i := 0; i < b.N; i++ {
 		tr.Insert(boxes[i].min[:], boxes[i].max[:], i)
-	})
+	}
 }
