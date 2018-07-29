@@ -7,7 +7,7 @@
 This package provides an in-memory R-Tree implementation for Go. It's designed
 for [Tile38](https://github.com/tidwall/tile38).
 
-<img src="/res/cities.png" width="784" height="300" border="0" alt="Cities">
+<img src="/res/cities.png" width="512" height="256" border="0" alt="Cities">
 
 ## Features
 
