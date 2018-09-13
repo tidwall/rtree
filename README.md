@@ -2,8 +2,6 @@
 
 [![GoDoc](https://godoc.org/github.com/tidwall/boxtree?status.svg)](https://godoc.org/github.com/tidwall/boxtree)
 
-**EXPERIMENTAL**
-
 This package provides an in-memory R-Tree implementation for Go. It's designed
 for [Tile38](https://github.com/tidwall/tile38).
 
