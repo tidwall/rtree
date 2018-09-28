@@ -335,7 +335,7 @@ func (r *box) search(
 					return false
 				}
 			case contains:
-				if !n.boxes[i].scan(target, height-1, iter) {
+				if !n.boxes[i].scan(height-1, iter) {
 					return false
 				}
 			}
@@ -355,7 +355,7 @@ func (tr *BoxTree) search(
 	if res == intersects {
 		tr.root.search(target, tr.height, iter)
 	} else if res == contains {
-		tr.root.scan(target, tr.height, iter)
+		tr.root.scan(tr.height, iter)
 	}
 }
 
@@ -420,8 +420,7 @@ func (r *box) traverse(
 }
 
 func (r *box) scan(
-	target *box, height int,
-	iter func(min, max []float64, value interface{}) bool,
+	height int, iter func(min, max []float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
 	if height == 0 {
@@ -432,7 +431,7 @@ func (r *box) scan(
 		}
 	} else {
 		for i := 0; i < n.count; i++ {
-			if !n.boxes[i].scan(target, height-1, iter) {
+			if !n.boxes[i].scan(height-1, iter) {
 				return false
 			}
 		}
@@ -445,7 +444,7 @@ func (tr *BoxTree) Scan(iter func(min, max []float64, value interface{}) bool) {
 	if tr.root.data == nil {
 		return
 	}
-	tr.root.scan(nil, tr.height, iter)
+	tr.root.scan(tr.height, iter)
 }
 
 // Delete ...
