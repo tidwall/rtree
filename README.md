@@ -1,6 +1,6 @@
-# `BoxTree`
+# `R!tree`
 
-[![GoDoc](https://godoc.org/github.com/tidwall/boxtree?status.svg)](https://godoc.org/github.com/tidwall/boxtree)
+[![GoDoc](https://godoc.org/github.com/tidwall/rbang-go?status.svg)](https://godoc.org/github.com/tidwall/rbang-go)
 
 This package provides an in-memory R-Tree implementation for Go. It's designed
 for [Tile38](https://github.com/tidwall/tile38).
@@ -10,23 +10,23 @@ for [Tile38](https://github.com/tidwall/tile38).
 ## Features
 
 - Support for 2 and 3 dimensions
-- Optimized for fast box inserts and replacements.
+- Optimized for fast rect inserts and replacements.
 
 ## Usage
 
 ### Installing
 
-To start using BoxTree, install Go and run `go get`:
+To start using R!Tree, install Go and run `go get`:
 
 ```sh
-$ go get -u github.com/tidwall/boxtree
+$ go get -u github.com/tidwall/rbang-go
 ```
 
 ### Basic operations
 
 ```go
-// create a 2D BoxTree
-tr := boxtree.New(2)
+// create a 2D RTree
+tr := rbang.New(2)
 
 // insert a point
 tr.Insert([]float64{-112.0078, 33.4373}, nil, "PHX")
@@ -88,5 +88,5 @@ I hope to provide more details in the future.
 
 ## License
 
-`BoxTree` source code is available under the MIT License.
+`rbang` source code is available under the MIT License.
 
