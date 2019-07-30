@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 
 	"github.com/tidwall/boxtree"
-	"github.com/tidwall/boxtree/res/tools"
 	"github.com/tidwall/cities"
+	"github.com/tidwall/rbang-go/res/tools"
 )
 
 func main() {

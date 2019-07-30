@@ -1,9 +1,9 @@
-package d2
+package d3
 
-const dims = 2
+const dims = 3
 
 const (
-	maxEntries = 16
+	maxEntries = 32
 	minEntries = maxEntries * 40 / 100
 )
 
@@ -17,8 +17,8 @@ type node struct {
 	boxes [maxEntries + 1]box
 }
 
-// BoxTree ...
-type BoxTree struct {
+// RTree ...
+type RTree struct {
 	height   int
 	root     box
 	count    int
@@ -88,13 +88,13 @@ func (r *box) enlargedArea(b *box) float64 {
 }
 
 // Insert inserts an item into the RTree
-func (tr *BoxTree) Insert(min, max []float64, value interface{}) {
+func (tr *RTree) Insert(min, max []float64, value interface{}) {
 	var item box
 	fit(min, max, value, &item)
 	tr.insert(&item)
 }
 
-func (tr *BoxTree) insert(item *box) {
+func (tr *RTree) insert(item *box) {
 	if tr.root.data == nil {
 		fit(item.min[:], item.max[:], new(node), &tr.root)
 	}
@@ -344,7 +344,7 @@ func (r *box) search(
 	return true
 }
 
-func (tr *BoxTree) search(
+func (tr *RTree) search(
 	target *box,
 	iter func(min, max []float64, value interface{}) bool,
 ) {
@@ -360,7 +360,7 @@ func (tr *BoxTree) search(
 }
 
 // Search ...
-func (tr *BoxTree) Search(min, max []float64,
+func (tr *RTree) Search(min, max []float64,
 	iter func(min, max []float64, value interface{}) bool,
 ) {
 	var target box
@@ -378,7 +378,7 @@ const (
 )
 
 // Traverse iterates through all items and container boxes in tree.
-func (tr *BoxTree) Traverse(
+func (tr *RTree) Traverse(
 	iter func(min, max []float64, height, level int, value interface{}) int,
 ) {
 	if tr.root.data == nil {
@@ -440,7 +440,7 @@ func (r *box) scan(
 }
 
 // Scan iterates through all items in tree.
-func (tr *BoxTree) Scan(iter func(min, max []float64, value interface{}) bool) {
+func (tr *RTree) Scan(iter func(min, max []float64, value interface{}) bool) {
 	if tr.root.data == nil {
 		return
 	}
@@ -448,7 +448,7 @@ func (tr *BoxTree) Scan(iter func(min, max []float64, value interface{}) bool) {
 }
 
 // Delete ...
-func (tr *BoxTree) Delete(min, max []float64, value interface{}) {
+func (tr *RTree) Delete(min, max []float64, value interface{}) {
 	var item box
 	fit(min, max, value, &item)
 	if tr.root.data == nil || !tr.root.contains(&item) {
@@ -551,7 +551,7 @@ func (r *box) onEdge(b *box) bool {
 }
 
 // Count ...
-func (tr *BoxTree) Count() int {
+func (tr *RTree) Count() int {
 	return tr.count
 }
 
@@ -573,7 +573,7 @@ func (r *box) totalOverlapArea(height int) float64 {
 }
 
 // TotalOverlapArea ...
-func (tr *BoxTree) TotalOverlapArea() float64 {
+func (tr *RTree) TotalOverlapArea() float64 {
 	if tr.root.data == nil {
 		return 0
 	}
@@ -642,7 +642,7 @@ func (q *queue) pop() qnode {
 
 // Nearby returns items nearest to farthest.
 // The dist param is the "box distance".
-func (tr *BoxTree) Nearby(min, max []float64,
+func (tr *RTree) Nearby(min, max []float64,
 	iter func(min, max []float64, item interface{}) bool) {
 	if tr.root.data == nil {
 		return
@@ -698,7 +698,7 @@ func boxDist(a, b *box) float64 {
 }
 
 // Bounds returns the minimum bounding box
-func (tr *BoxTree) Bounds() (min, max []float64) {
+func (tr *RTree) Bounds() (min, max []float64) {
 	if tr.root.data == nil {
 		return
 	}

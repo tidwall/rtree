@@ -1,12 +1,12 @@
-package boxtree
+package rbang
 
 import (
-	"github.com/tidwall/boxtree/d2"
-	"github.com/tidwall/boxtree/d3"
+	"github.com/tidwall/rbang-go/d2"
+	"github.com/tidwall/rbang-go/d3"
 )
 
-// BoxTree is an rtree by a different name
-type BoxTree interface {
+// RTree is an rtree
+type RTree interface {
 	Insert(min, max []float64, value interface{})
 	Delete(min, max []float64, value interface{})
 	Search(min, max []float64,
@@ -24,13 +24,13 @@ type BoxTree interface {
 }
 
 // New returns are new BoxTree, only 2 dims are allows
-func New(dims int) BoxTree {
+func New(dims int) RTree {
 	switch dims {
 	default:
 		panic("invalid dimensions")
 	case 2:
-		return new(d2.BoxTree)
+		return new(d2.RTree)
 	case 3:
-		return new(d3.BoxTree)
+		return new(d3.RTree)
 	}
 }

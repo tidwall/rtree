@@ -1,4 +1,4 @@
-package d3
+package d2
 
 import (
 	"fmt"
@@ -110,7 +110,7 @@ func testBoxDist(amin, amax, bmin, bmax []float64) float64 {
 func testBoxesVarious(t *testing.T, boxes []tBox, label string) {
 	N := len(boxes)
 
-	var tr BoxTree
+	var tr RTree
 
 	// N := 10000
 	// boxes := randPoints(N)
@@ -352,7 +352,7 @@ func (r *box) print(height, indent int) {
 
 }
 
-func (tr BoxTree) print() {
+func (tr RTree) print() {
 	if tr.root.data == nil {
 		println("EMPTY TREE")
 		return
@@ -362,7 +362,7 @@ func (tr BoxTree) print() {
 
 func TestZeroPoints(t *testing.T) {
 	N := 10000
-	var tr BoxTree
+	var tr RTree
 	pt := make([]float64, dims)
 	for i := 0; i < N; i++ {
 		tr.Insert(pt, nil, i)
@@ -370,7 +370,7 @@ func TestZeroPoints(t *testing.T) {
 }
 
 func BenchmarkRandomInsert(b *testing.B) {
-	var tr BoxTree
+	var tr RTree
 	boxes := randBoxes(b.N)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

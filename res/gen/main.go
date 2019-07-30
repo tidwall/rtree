@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	b, err := ioutil.ReadFile("d2/boxtree.go")
+	b, err := ioutil.ReadFile("d2/rbang.go")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -18,15 +18,15 @@ func main() {
 	if err := os.MkdirAll("d3", 0777); err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile("d3/boxtree.go", []byte(s), 0666); err != nil {
+	if err := ioutil.WriteFile("d3/rbang.go", []byte(s), 0666); err != nil {
 		log.Fatal(err)
 	}
-	b, err = ioutil.ReadFile("d2/boxtree_test.go")
+	b, err = ioutil.ReadFile("d2/rbang_test.go")
 	if err != nil {
 		log.Fatal(err)
 	}
 	b = []byte(strings.Replace(string(b), "package d2", "package d3", 1))
-	if err := ioutil.WriteFile("d3/boxtree_test.go", b, 0666); err != nil {
+	if err := ioutil.WriteFile("d3/rbang_test.go", b, 0666); err != nil {
 		log.Fatal(err)
 	}
 
