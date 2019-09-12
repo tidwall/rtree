@@ -5,7 +5,7 @@ import (
 
 	"github.com/tidwall/boxtree"
 	"github.com/tidwall/cities"
-	"github.com/tidwall/rbang-go/res/tools"
+	"github.com/tidwall/rbang/res/tools"
 )
 
 func main() {

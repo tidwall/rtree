@@ -1,8 +1,8 @@
 package rbang
 
 import (
-	"github.com/tidwall/rbang-go/d2"
-	"github.com/tidwall/rbang-go/d3"
+	"github.com/tidwall/rbang/d2"
+	"github.com/tidwall/rbang/d3"
 )
 
 // RTree is an rtree
