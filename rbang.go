@@ -1,5 +1,9 @@
 package rbang
 
+import (
+	"github.com/tidwall/geoindex/child"
+)
+
 const (
 	maxEntries = 32
 	minEntries = maxEntries * 40 / 100
@@ -501,19 +505,18 @@ func (tr *RTree) Bounds() (min, max [2]float64) {
 // optionally be used to avoid extra allocations.
 func (tr *RTree) Children(
 	parent interface{},
-	reuseMin [][2]float64,
-	reuseMax [][2]float64,
-	reuseData []interface{},
-	reuseItem []bool,
-) (mins, maxs [][2]float64, datas []interface{}, items []bool) {
-	mins, maxs, datas, items = reuseMin, reuseMax, reuseData, reuseItem
+	reuse []child.Child,
+) []child.Child {
+	children := reuse
 	if parent == nil {
 		if tr.Len() > 0 {
 			// fill with the root
-			mins = append(mins, tr.root.min)
-			maxs = append(maxs, tr.root.max)
-			datas = append(datas, tr.root.data)
-			items = append(items, false)
+			children = append(children, child.Child{
+				Min:  tr.root.min,
+				Max:  tr.root.max,
+				Data: tr.root.data,
+				Item: false,
+			})
 		}
 	} else {
 		// fill with child items
@@ -525,11 +528,13 @@ func (tr *RTree) Children(
 			}
 		}
 		for i := 0; i < n.count; i++ {
-			mins = append(mins, n.boxes[i].min)
-			maxs = append(maxs, n.boxes[i].max)
-			datas = append(datas, n.boxes[i].data)
-			items = append(items, item)
+			children = append(children, child.Child{
+				Min:  n.boxes[i].min,
+				Max:  n.boxes[i].max,
+				Data: n.boxes[i].data,
+				Item: item,
+			})
 		}
 	}
-	return mins, maxs, datas, items
+	return children
 }

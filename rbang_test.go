@@ -345,7 +345,7 @@ func testBoxesVarious(t *testing.T, boxes []tBox, label string) {
 	}
 
 	var boxes3 []tBox
-	(&geoindex.Index{Interface: &tr}).Nearby(
+	geoindex.Wrap(&tr).Nearby(
 		geoindex.SimpleBoxAlgo(centerMin, centerMax),
 		func(min, max [2]float64, value interface{}, dist float64) bool {
 			boxes3 = append(boxes3, value.(tBox))
