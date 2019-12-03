@@ -255,35 +255,6 @@ func fit(min, max [2]float64, value interface{}, target *rect) {
 	target.data = value
 }
 
-type overlapsResult int
-
-const (
-	not overlapsResult = iota
-	intersects
-	contains
-)
-
-// overlaps detects if r insersects or contains b.
-// return not, intersects, contains
-func (r *rect) overlaps(b *rect) overlapsResult {
-	if b.min[0] > r.max[0] || b.max[0] < r.min[0] {
-		return not
-	}
-	if r.min[0] > b.min[0] || b.max[0] > r.max[0] {
-		if b.min[1] > r.max[1] || b.max[1] < r.min[1] {
-			return not
-		}
-		return intersects
-	}
-	if b.min[1] > r.max[1] || b.max[1] < r.min[1] {
-		return not
-	}
-	if r.min[1] > b.min[1] || b.max[1] > r.max[1] {
-		return intersects
-	}
-	return contains
-}
-
 // contains return struct when b is fully contained inside of n
 func (r *rect) intersects(b *rect) bool {
 	if b.min[0] > r.max[0] || b.max[0] < r.min[0] {
@@ -311,13 +282,8 @@ func (r *rect) search(
 		}
 	} else {
 		for i := 0; i < n.count; i++ {
-			switch target.overlaps(&n.boxes[i]) {
-			case intersects:
+			if target.intersects(&n.boxes[i]) {
 				if !n.boxes[i].search(target, height-1, iter) {
-					return false
-				}
-			case contains:
-				if !n.boxes[i].scan(height-1, iter) {
 					return false
 				}
 			}
@@ -333,11 +299,8 @@ func (tr *RTree) search(
 	if tr.root.data == nil {
 		return
 	}
-	res := target.overlaps(&tr.root)
-	if res == intersects {
+	if target.intersects(&tr.root) {
 		tr.root.search(target, tr.height, iter)
-	} else if res == contains {
-		tr.root.scan(tr.height, iter)
 	}
 }
 
