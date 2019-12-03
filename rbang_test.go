@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/tidwall/geoindex"
+	"github.com/tidwall/geoindex/algo"
 	"github.com/tidwall/lotsa"
 )
 
@@ -346,7 +347,7 @@ func testBoxesVarious(t *testing.T, boxes []tBox, label string) {
 
 	var boxes3 []tBox
 	geoindex.Wrap(&tr).Nearby(
-		geoindex.SimpleBoxAlgo(centerMin, centerMax),
+		algo.Box(centerMin, centerMax, false, nil),
 		func(min, max [2]float64, value interface{}, dist float64) bool {
 			boxes3 = append(boxes3, value.(tBox))
 			return true
