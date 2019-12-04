@@ -280,6 +280,20 @@ func (r *rect) search(
 				}
 			}
 		}
+	} else if height == 1 {
+		for i := 0; i < n.count; i++ {
+			if target.intersects(&n.boxes[i]) {
+				cn := n.boxes[i].data.(*node)
+				for i := 0; i < cn.count; i++ {
+					if target.intersects(&cn.boxes[i]) {
+						if !iter(cn.boxes[i].min, cn.boxes[i].max,
+							cn.boxes[i].data) {
+							return false
+						}
+					}
+				}
+			}
+		}
 	} else {
 		for i := 0; i < n.count; i++ {
 			if target.intersects(&n.boxes[i]) {
@@ -323,6 +337,15 @@ func (r *rect) scan(
 		for i := 0; i < n.count; i++ {
 			if !iter(n.boxes[i].min, n.boxes[i].max, n.boxes[i].data) {
 				return false
+			}
+		}
+	} else if height == 1 {
+		for i := 0; i < n.count; i++ {
+			cn := n.boxes[i].data.(*node)
+			for j := 0; j < cn.count; j++ {
+				if !iter(cn.boxes[i].min, cn.boxes[j].max, cn.boxes[j].data) {
+					return false
+				}
 			}
 		}
 	} else {
