@@ -15,8 +15,8 @@ func init() {
 }
 
 func TestGeoIndex(t *testing.T) {
-	t.Run("BenchInsert", func(t *testing.T) {
-		geoindex.Tests.TestBenchInsert(t, &RTree{}, 100000)
+	t.Run("BenchVarious", func(t *testing.T) {
+		geoindex.Tests.TestBenchVarious(t, &RTree{}, 1000000)
 	})
 	t.Run("RandomRects", func(t *testing.T) {
 		geoindex.Tests.TestRandomRects(t, &RTree{}, 10000)

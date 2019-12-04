@@ -501,3 +501,13 @@ func (tr *RTree) Children(
 	}
 	return children
 }
+
+// Replace an item in the structure. This is effectively just a Delete
+// followed by an Insert.
+func (tr *RTree) Replace(
+	oldMin, oldMax [2]float64, oldData interface{},
+	newMin, newMax [2]float64, newData interface{},
+) {
+	tr.Delete(oldMin, oldMax, oldData)
+	tr.Insert(newMin, newMax, newData)
+}
