@@ -1,4 +1,4 @@
-# `R!tree`
+# `rbang`
 
 [![GoDoc](https://godoc.org/github.com/tidwall/rbang?status.svg)](https://godoc.org/github.com/tidwall/rbang)
 
