@@ -343,7 +343,7 @@ func (r *rect) scan(
 		for i := 0; i < n.count; i++ {
 			cn := n.rects[i].data.(*node)
 			for j := 0; j < cn.count; j++ {
-				if !iter(cn.rects[i].min, cn.rects[j].max, cn.rects[j].data) {
+				if !iter(cn.rects[j].min, cn.rects[j].max, cn.rects[j].data) {
 					return false
 				}
 			}
