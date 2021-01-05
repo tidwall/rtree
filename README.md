@@ -1,4 +1,4 @@
-# `rbang`
+# rbang
 
 [![GoDoc](https://godoc.org/github.com/tidwall/rbang?status.svg)](https://godoc.org/github.com/tidwall/rbang)
 
@@ -74,5 +74,5 @@ Each `equal` rect is then one-by-one placed in either `left` or `right`, whichev
 
 ## License
 
-`rbang` source code is available under the MIT License.
+rbang source code is available under the MIT License.
 
