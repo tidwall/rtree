@@ -6,7 +6,7 @@ import (
 
 const (
 	maxEntries = 32
-	minEntries = maxEntries * 40 / 100
+	minEntries = maxEntries * 20 / 100
 )
 
 type rect struct {
