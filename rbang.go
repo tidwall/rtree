@@ -140,18 +140,49 @@ func (tr *RTree) insert(item *rect) {
 	tr.count++
 }
 
-func (r *rect) chooseLeastEnlargement(b *rect) int {
-	j, jenlargement, jarea := -1, 0.0, 0.0
+const inlineEnlargedArea = true
+
+func (r *rect) chooseLeastEnlargement(b *rect) (index int) {
 	n := r.data.(*node)
+	j, jenlargement, jarea := -1, 0.0, 0.0
 	for i := 0; i < n.count; i++ {
-		area := n.rects[i].area()
-		enlargement := n.rects[i].enlargedArea(b) - area
-		if j == -1 || enlargement < jenlargement {
-			j, jenlargement, jarea = i, enlargement, area
-		} else if enlargement == jenlargement {
-			if area < jarea {
-				j, jenlargement, jarea = i, enlargement, area
+		var earea float64
+		if inlineEnlargedArea {
+			earea = 1.0
+			if b.max[0] > n.rects[i].max[0] {
+				if b.min[0] < n.rects[i].min[0] {
+					earea *= b.max[0] - b.min[0]
+				} else {
+					earea *= b.max[0] - n.rects[i].min[0]
+				}
+			} else {
+				if b.min[0] < n.rects[i].min[0] {
+					earea *= n.rects[i].max[0] - b.min[0]
+				} else {
+					earea *= n.rects[i].max[0] - n.rects[i].min[0]
+				}
 			}
+			if b.max[1] > n.rects[i].max[1] {
+				if b.min[1] < n.rects[i].min[1] {
+					earea *= b.max[1] - b.min[1]
+				} else {
+					earea *= b.max[1] - n.rects[i].min[1]
+				}
+			} else {
+				if b.min[1] < n.rects[i].min[1] {
+					earea *= n.rects[i].max[1] - b.min[1]
+				} else {
+					earea *= n.rects[i].max[1] - n.rects[i].min[1]
+				}
+			}
+		} else {
+			earea = n.rects[i].enlargedArea(b)
+		}
+		area := n.rects[i].area()
+		enlargement := earea - area
+		if j == -1 || enlargement < jenlargement ||
+			(enlargement == jenlargement && area < jarea) {
+			j, jenlargement, jarea = i, enlargement, area
 		}
 	}
 	return j
@@ -233,8 +264,25 @@ func (r *rect) insert(item *rect, height int) (grown bool) {
 		grown = !r.contains(item)
 		return grown
 	}
+
 	// choose subtree
-	index := r.chooseLeastEnlargement(item)
+	index := -1
+	narea := 0.0
+	// first take a quick look for any nodes that contain the rect
+	for i := 0; i < n.count; i++ {
+		if n.rects[i].contains(item) {
+			area := n.rects[i].area()
+			if index == -1 || area < narea {
+				narea = area
+				index = i
+			}
+		}
+	}
+	// found nothing, now go the slow path
+	if index == -1 {
+		index = r.chooseLeastEnlargement(item)
+	}
+	// insert the item into the child node
 	child := &n.rects[index]
 	grown = child.insert(item, height-1)
 	if grown {
@@ -374,8 +422,7 @@ func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
 		return
 	}
 	var removed, recalced bool
-	removed, recalced, tr.reinsert =
-		tr.root.delete(&item, tr.height, tr.reinsert[:0])
+	removed, recalced = tr.root.delete(tr, &item, tr.height)
 	if !removed {
 		return
 	}
@@ -393,60 +440,62 @@ func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
 	if recalced {
 		tr.root.recalc()
 	}
-	for i := range tr.reinsert {
-		tr.insert(&tr.reinsert[i])
-		tr.reinsert[i].data = nil
+	if len(tr.reinsert) > 0 {
+		for i := range tr.reinsert {
+			tr.insert(&tr.reinsert[i])
+			tr.reinsert[i].data = nil
+		}
+		tr.reinsert = tr.reinsert[:0]
 	}
 }
 
-func (r *rect) delete(item *rect, height int, reinsert []rect) (
-	removed, recalced bool, reinsertOut []rect,
-) {
+func (r *rect) delete(tr *RTree, item *rect, height int,
+) (removed, recalced bool) {
 	n := r.data.(*node)
+	rects := n.rects[0:n.count]
 	if height == 0 {
-		for i := 0; i < n.count; i++ {
-			if n.rects[i].data == item.data {
+		for i := 0; i < len(rects); i++ {
+			if rects[i].data == item.data {
 				// found the target item to delete
-				recalced = r.onEdge(&n.rects[i])
-				n.rects[i] = n.rects[n.count-1]
-				n.rects[n.count-1].data = nil
+				recalced = r.onEdge(&rects[i])
+				rects[i] = rects[len(rects)-1]
+				rects[len(rects)-1].data = nil
 				n.count--
 				if recalced {
 					r.recalc()
 				}
-				return true, recalced, reinsert
+				return true, recalced
 			}
 		}
 	} else {
-		for i := 0; i < n.count; i++ {
-			if !n.rects[i].contains(item) {
+		for i := 0; i < len(rects); i++ {
+			if !rects[i].contains(item) {
 				continue
 			}
-			removed, recalced, reinsert =
-				n.rects[i].delete(item, height-1, reinsert)
+			removed, recalced = rects[i].delete(tr, item, height-1)
 			if !removed {
 				continue
 			}
-			if n.rects[i].data.(*node).count < minEntries {
+			if rects[i].data.(*node).count < minEntries {
 				// underflow
 				if !recalced {
-					recalced = r.onEdge(&n.rects[i])
+					recalced = r.onEdge(&rects[i])
 				}
-				reinsert = n.rects[i].flatten(reinsert, height-1)
-				n.rects[i] = n.rects[n.count-1]
-				n.rects[n.count-1].data = nil
+				tr.reinsert = rects[i].flatten(tr.reinsert, height-1)
+				rects[i] = rects[len(rects)-1]
+				rects[len(rects)-1].data = nil
 				n.count--
 			}
 			if recalced {
 				r.recalc()
 			}
-			return removed, recalced, reinsert
+			return removed, recalced
 		}
 	}
-	return false, false, reinsert
+	return false, false
 }
 
-// flatten flattens all leaf rects into a single list
+// flatten all leaf rects into a single list
 func (r *rect) flatten(all []rect, height int) []rect {
 	n := r.data.(*node)
 	if height == 0 {
@@ -525,8 +574,9 @@ func (tr *RTree) Children(
 	return children
 }
 
-// Replace an item in the structure. This is effectively just a Delete
-// followed by an Insert.
+// Replace an item.
+// This is effectively just a Delete followed by an Insert. Which means the
+// new item will always be inserted, whether or not the old item was deleted.
 func (tr *RTree) Replace(
 	oldMin, oldMax [2]float64, oldData interface{},
 	newMin, newMax [2]float64, newData interface{},
