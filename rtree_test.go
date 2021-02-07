@@ -1,4 +1,4 @@
-package rbang
+package rtree
 
 import (
 	"math/rand"

@@ -1,6 +1,6 @@
-# rbang
+# rtree
 
-[![GoDoc](https://godoc.org/github.com/tidwall/rbang?status.svg)](https://godoc.org/github.com/tidwall/rbang)
+[![GoDoc](https://godoc.org/github.com/tidwall/rtree?status.svg)](https://godoc.org/github.com/tidwall/rtree)
 
 This package provides an in-memory R-Tree implementation for Go. It's designed
 for [Tile38](https://github.com/tidwall/tile38) and is optimized for fast rect 
@@ -12,17 +12,17 @@ inserts and replacements.
 
 ### Installing
 
-To start using rbang, install Go and run `go get`:
+To start using rtree, install Go and run `go get`:
 
 ```sh
-$ go get -u github.com/tidwall/rbang
+$ go get -u github.com/tidwall/rtree
 ```
 
 ### Basic operations
 
 ```go
 // create a 2D RTree
-var tr rbang.RTree
+var tr rtree.RTree
 
 // insert a point
 tr.Insert([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
@@ -74,5 +74,5 @@ Each `equal` rect is then one-by-one placed in either `left` or `right`, whichev
 
 ## License
 
-rbang source code is available under the MIT License.
+rtree source code is available under the MIT License.
 

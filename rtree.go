@@ -1,8 +1,6 @@
-package rbang
+package rtree
 
-import (
-	"github.com/tidwall/geoindex/child"
-)
+import "github.com/tidwall/geoindex/child"
 
 const (
 	maxEntries = 32
