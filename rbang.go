@@ -315,30 +315,15 @@ func (r *rect) intersects(b *rect) bool {
 }
 
 func (r *rect) search(
-	target *rect, height int,
+	target rect, height int,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
 	if height == 0 {
 		for i := 0; i < n.count; i++ {
 			if target.intersects(&n.rects[i]) {
-				if !iter(n.rects[i].min, n.rects[i].max,
-					n.rects[i].data) {
+				if !iter(n.rects[i].min, n.rects[i].max, n.rects[i].data) {
 					return false
-				}
-			}
-		}
-	} else if height == 1 {
-		for i := 0; i < n.count; i++ {
-			if target.intersects(&n.rects[i]) {
-				cn := n.rects[i].data.(*node)
-				for i := 0; i < cn.count; i++ {
-					if target.intersects(&cn.rects[i]) {
-						if !iter(cn.rects[i].min, cn.rects[i].max,
-							cn.rects[i].data) {
-							return false
-						}
-					}
 				}
 			}
 		}
@@ -355,7 +340,7 @@ func (r *rect) search(
 }
 
 func (tr *RTree) search(
-	target *rect,
+	target rect,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) {
 	if tr.root.data == nil {
@@ -371,9 +356,7 @@ func (tr *RTree) Search(
 	min, max [2]float64,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) {
-	var target rect
-	fit(min, max, nil, &target)
-	tr.search(&target, iter)
+	tr.search(rect{min: min, max: max}, iter)
 }
 
 func (r *rect) scan(
@@ -385,15 +368,6 @@ func (r *rect) scan(
 		for i := 0; i < n.count; i++ {
 			if !iter(n.rects[i].min, n.rects[i].max, n.rects[i].data) {
 				return false
-			}
-		}
-	} else if height == 1 {
-		for i := 0; i < n.count; i++ {
-			cn := n.rects[i].data.(*node)
-			for j := 0; j < cn.count; j++ {
-				if !iter(cn.rects[j].min, cn.rects[j].max, cn.rects[j].data) {
-					return false
-				}
 			}
 		}
 	} else {
