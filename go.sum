@@ -1,6 +1,6 @@
 github.com/tidwall/cities v0.1.0 h1:CVNkmMf7NEC9Bvokf5GoSsArHCKRMTgLuubRTHnH0mE=
 github.com/tidwall/cities v0.1.0/go.mod h1:lV/HDp2gCcRcHJWqgt6Di54GiDrTZwh1aG2ZUPNbqa4=
-github.com/tidwall/geoindex v1.4.1 h1:dlhM+2isLqz8ndHn7vOCevD3IPH3XeO/BaFN4rLpimo=
-github.com/tidwall/geoindex v1.4.1/go.mod h1:NQJQszWCH4+KlD0wY+mgQ2hK/GdSH+9+ZRknDY8bOHc=
+github.com/tidwall/geoindex v1.4.3 h1:zowx7LtzibIE6JPbL6CRgVgw9qp13dJ8Pzfa4/f+4us=
+github.com/tidwall/geoindex v1.4.3/go.mod h1:NQJQszWCH4+KlD0wY+mgQ2hK/GdSH+9+ZRknDY8bOHc=
 github.com/tidwall/lotsa v1.0.1 h1:w4gpDvI7RdkgbMC0q5ndKqG2ffrwCgerUY/gM2TYkH4=
 github.com/tidwall/lotsa v1.0.1/go.mod h1:X6NiU+4yHA3fE3Puvpnn1XMDrFZrE9JO2/w+UMuqgR8=
