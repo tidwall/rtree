@@ -5,6 +5,8 @@
 package rtree
 
 import (
+	"math"
+
 	"github.com/tidwall/geoindex/child"
 )
 
@@ -50,71 +52,10 @@ func (r *rect) area() float64 {
 	return (r.max[0] - r.min[0]) * (r.max[1] - r.min[1])
 }
 
-func (r *rect) overlapArea(b *rect) float64 {
-	area := 1.0
-	var max, min float64
-	if r.max[0] < b.max[0] {
-		max = r.max[0]
-	} else {
-		max = b.max[0]
-	}
-	if r.min[0] > b.min[0] {
-		min = r.min[0]
-	} else {
-		min = b.min[0]
-	}
-	if max > min {
-		area *= max - min
-	} else {
-		return 0
-	}
-	if r.max[1] < b.max[1] {
-		max = r.max[1]
-	} else {
-		max = b.max[1]
-	}
-	if r.min[1] > b.min[1] {
-		min = r.min[1]
-	} else {
-		min = b.min[1]
-	}
-	if max > min {
-		area *= max - min
-	} else {
-		return 0
-	}
-	return area
-}
-
-func (r *rect) enlargedArea(b *rect) float64 {
-	area := 1.0
-	if b.max[0] > r.max[0] {
-		if b.min[0] < r.min[0] {
-			area *= b.max[0] - b.min[0]
-		} else {
-			area *= b.max[0] - r.min[0]
-		}
-	} else {
-		if b.min[0] < r.min[0] {
-			area *= r.max[0] - b.min[0]
-		} else {
-			area *= r.max[0] - r.min[0]
-		}
-	}
-	if b.max[1] > r.max[1] {
-		if b.min[1] < r.min[1] {
-			area *= b.max[1] - b.min[1]
-		} else {
-			area *= b.max[1] - r.min[1]
-		}
-	} else {
-		if b.min[1] < r.min[1] {
-			area *= r.max[1] - b.min[1]
-		} else {
-			area *= r.max[1] - r.min[1]
-		}
-	}
-	return area
+// unionedArea returns the area of two rects expanded
+func (r *rect) unionedArea(b *rect) float64 {
+	return (math.Max(r.max[0], b.max[0]) - math.Min(r.min[0], b.min[0])) *
+		(math.Max(r.max[1], b.max[1]) - math.Min(r.min[1], b.min[1]))
 }
 
 // Insert inserts an item into the RTree
@@ -144,46 +85,14 @@ func (tr *RTree) insert(item *rect) {
 	tr.count++
 }
 
-const inlineEnlargedArea = true
-
 func (r *rect) chooseLeastEnlargement(b *rect) (index int) {
 	n := r.data.(*node)
 	j, jenlargement, jarea := -1, 0.0, 0.0
 	for i := 0; i < n.count; i++ {
-		var earea float64
-		if inlineEnlargedArea {
-			earea = 1.0
-			if b.max[0] > n.rects[i].max[0] {
-				if b.min[0] < n.rects[i].min[0] {
-					earea *= b.max[0] - b.min[0]
-				} else {
-					earea *= b.max[0] - n.rects[i].min[0]
-				}
-			} else {
-				if b.min[0] < n.rects[i].min[0] {
-					earea *= n.rects[i].max[0] - b.min[0]
-				} else {
-					earea *= n.rects[i].max[0] - n.rects[i].min[0]
-				}
-			}
-			if b.max[1] > n.rects[i].max[1] {
-				if b.min[1] < n.rects[i].min[1] {
-					earea *= b.max[1] - b.min[1]
-				} else {
-					earea *= b.max[1] - n.rects[i].min[1]
-				}
-			} else {
-				if b.min[1] < n.rects[i].min[1] {
-					earea *= n.rects[i].max[1] - b.min[1]
-				} else {
-					earea *= n.rects[i].max[1] - n.rects[i].min[1]
-				}
-			}
-		} else {
-			earea = n.rects[i].enlargedArea(b)
-		}
+		// calculate the enlarged area
+		uarea := n.rects[i].unionedArea(b)
 		area := n.rects[i].area()
-		enlargement := earea - area
+		enlargement := uarea - area
 		if j == -1 || enlargement < jenlargement ||
 			(enlargement == jenlargement && area < jarea) {
 			j, jenlargement, jarea = i, enlargement, area
