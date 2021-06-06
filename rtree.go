@@ -58,7 +58,7 @@ func (r *rect) unionedArea(b *rect) float64 {
 		(math.Max(r.max[1], b.max[1]) - math.Min(r.min[1], b.min[1]))
 }
 
-// Insert inserts an item into the RTree
+// Insert data into tree
 func (tr *RTree) Insert(min, max [2]float64, value interface{}) {
 	var item rect
 	fit(min, max, value, &item)
