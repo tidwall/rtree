@@ -303,15 +303,18 @@ func (tr *RTree) Scan(iter func(min, max [2]float64, data interface{}) bool) {
 
 // Delete data from tree
 func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
+	tr.deleteWithResult(min, max, data)
+}
+func (tr *RTree) deleteWithResult(min, max [2]float64, data interface{}) bool {
 	var item rect
 	fit(min, max, data, &item)
 	if tr.root.data == nil || !tr.root.contains(&item) {
-		return
+		return false
 	}
 	var removed, recalced bool
 	removed, recalced = tr.root.delete(tr, &item, tr.height)
 	if !removed {
-		return
+		return false
 	}
 	tr.count -= len(tr.reinsert) + 1
 	if tr.count == 0 {
@@ -334,6 +337,7 @@ func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
 		}
 		tr.reinsert = tr.reinsert[:0]
 	}
+	return true
 }
 
 func (r *rect) delete(tr *RTree, item *rect, height int,
@@ -462,12 +466,12 @@ func (tr *RTree) Children(
 }
 
 // Replace an item.
-// This is effectively just a Delete followed by an Insert. Which means the
-// new item will always be inserted, whether or not the old item was deleted.
+// If the old item does not exist then the new item is not inserted.
 func (tr *RTree) Replace(
 	oldMin, oldMax [2]float64, oldData interface{},
 	newMin, newMax [2]float64, newData interface{},
 ) {
-	tr.Delete(oldMin, oldMax, oldData)
-	tr.Insert(newMin, newMax, newData)
+	if tr.deleteWithResult(oldMin, oldMax, oldData) {
+		tr.Insert(newMin, newMax, newData)
+	}
 }
