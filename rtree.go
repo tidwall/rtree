@@ -22,7 +22,7 @@ type rect struct {
 
 type node struct {
 	count int
-	rects [maxEntries + 1]rect
+	rects [maxEntries]rect
 }
 
 // RTree ...
@@ -73,7 +73,7 @@ func (tr *RTree) insert(item *rect) {
 	if grown {
 		tr.root.expand(item)
 	}
-	if tr.root.data.(*node).count == maxEntries+1 {
+	if tr.root.data.(*node).count == maxEntries {
 		newRoot := new(node)
 		tr.root.splitLargestAxisEdgeSnap(&newRoot.rects[1])
 		newRoot.rects[0] = tr.root
@@ -202,7 +202,7 @@ func (r *rect) insert(item *rect, height int) (grown bool) {
 		child.expand(item)
 		grown = !r.contains(item)
 	}
-	if child.data.(*node).count == maxEntries+1 {
+	if child.data.(*node).count == maxEntries {
 		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
 		n.count++
 	}
