@@ -15,8 +15,6 @@ const (
 	minEntries = maxEntries * 20 / 100
 )
 
-var inf = math.Inf(1)
-
 type rect struct {
 	min, max [2]float64
 	data     interface{}
@@ -29,7 +27,7 @@ type node struct {
 
 // RTree ...
 type RTree struct {
-	height   int16
+	height   int
 	root     rect
 	count    int
 	reinsert []rect
@@ -54,6 +52,12 @@ func (r *rect) area() float64 {
 	return (r.max[0] - r.min[0]) * (r.max[1] - r.min[1])
 }
 
+// unionedArea returns the area of two rects expanded
+func (r *rect) unionedArea(b *rect) float64 {
+	return (math.Max(r.max[0], b.max[0]) - math.Min(r.min[0], b.min[0])) *
+		(math.Max(r.max[1], b.max[1]) - math.Min(r.min[1], b.min[1]))
+}
+
 // Insert data into tree
 func (tr *RTree) Insert(min, max [2]float64, value interface{}) {
 	var item rect
@@ -65,52 +69,33 @@ func (tr *RTree) insert(item *rect) {
 	if tr.root.data == nil {
 		fit(item.min, item.max, new(node), &tr.root)
 	}
-	grown, split := tr.nodeInsert(&tr.root, item, tr.height)
-	if split {
-		n := new(node)
-		n.rects[0] = tr.root
-		n.count = 1
-		tr.root = rect{
-			min:  tr.root.min,
-			max:  tr.root.max,
-			data: n,
-		}
-		tr.split(&tr.root, 0)
-		tr.height++
-		tr.insert(item)
-		return
-	}
+	grown := tr.root.insert(item, tr.height)
 	if grown {
 		tr.root.expand(item)
+	}
+	if tr.root.data.(*node).count == maxEntries {
+		newRoot := new(node)
+		tr.root.splitLargestAxisEdgeSnap(&newRoot.rects[1])
+		newRoot.rects[0] = tr.root
+		newRoot.count = 2
+		tr.root.data = newRoot
+		tr.root.recalc()
+		tr.height++
 	}
 	tr.count++
 }
 
-func floatsEq(a, b float64) bool {
-	return !(a < b) && !(b < a)
-}
-
-func (r *rect) chooseSubtreeLeastEnlargement(b *rect) (index int) {
+func (r *rect) chooseLeastEnlargement(b *rect) (index int) {
 	n := r.data.(*node)
-
-	// Choose the entry in N whose rectangle needs least area enlargement to
-	// include the new data.
-	j, jenlarge := 0, inf
+	j, jenlargement, jarea := -1, 0.0, 0.0
 	for i := 0; i < n.count; i++ {
-
-		// get the unioned area
-		r2 := n.rects[i]
-		r2.expand(b)
-		uarea := (r2.max[0] - r2.min[0]) * (r2.max[1] - r2.min[1])
-
-		// get the area of the rectangle
+		// calculate the enlarged area
+		uarea := n.rects[i].unionedArea(b)
 		area := n.rects[i].area()
-
-		// get the enlargement
-		enlarge := uarea - area
-
-		if enlarge < jenlarge {
-			j, jenlarge = i, enlarge
+		enlargement := uarea - area
+		if j == -1 || enlargement < jenlargement ||
+			(enlargement == jenlargement && area < jarea) {
+			j, jenlargement, jarea = i, enlargement, area
 		}
 	}
 	return j
@@ -184,92 +169,44 @@ func (r *rect) splitLargestAxisEdgeSnap(right *rect) {
 	right.recalc()
 }
 
-func (tr *RTree) nodeInsert(r *rect, item *rect, height int16,
-) (grown, split bool) {
+func (r *rect) insert(item *rect, height int) (grown bool) {
 	n := r.data.(*node)
 	if height == 0 {
-		// leaf node
-		if n.count == maxEntries {
-			return false, true
-		}
 		n.rects[n.count] = *item
 		n.count++
 		grown = !r.contains(item)
-		return grown, false
+		return grown
 	}
 
-	index := tr.chooseSubtree(r, item, height)
-
-	// insert the item into the child node
-	child := &n.rects[index]
-	grown, split = tr.nodeInsert(child, item, height-1)
-	if split {
-		if n.count == maxEntries {
-			return false, true
-		}
-		tr.split(r, index)
-		return tr.nodeInsert(r, item, height)
-	}
-	if grown {
-		child.expand(item)
-		n.reorderChildRight(index)
-		grown = !r.contains(item)
-	}
-	return grown, false
-}
-
-// reorderRight will reorder the children rectangles by comparing the areas of
-// child at index to the child at index-1. If the area of the child at index is
-// less than the area of the child at index-1 then the two are swapped, the
-// index is decremented by one, and the operation is repeated. The operation
-// ends when the index is zero or the area of the child at index is not less
-// than the child at index-1.
-func (n *node) reorderChildRight(index int) {
-	area := n.rects[index].area()
-	for index > 0 {
-		if area < n.rects[index-1].area() {
-			n.rects[index-1], n.rects[index] = n.rects[index], n.rects[index-1]
-			index--
-		} else {
-			break
-		}
-	}
-}
-
-// reorderLeft is the same as reorderRight, but in reverse.
-func (n *node) reorderChildLeft(index int) {
-	area := n.rects[index].area()
-	for index < n.count-1 {
-		if area > n.rects[index+1].area() {
-			n.rects[index+1], n.rects[index] = n.rects[index], n.rects[index+1]
-			index++
-		} else {
-			break
-		}
-	}
-}
-
-// split the rect(node) at index
-// Param "r" is the parent rectangle. After the split this rectangle
-// Paream "index" is
-func (tr *RTree) split(r *rect, index int) {
-	n := r.data.(*node)
-	n.rects[index].splitLargestAxisEdgeSnap(&n.rects[n.count])
-	n.count++
-	n.reorderChildLeft(index)
-	n.reorderChildLeft(n.count - 1)
-}
-
-func (tr *RTree) chooseSubtree(r, item *rect, height int16) int {
-	// Take a quick peek for the first node that fully contains
-	// the item's rect.
-	n := r.data.(*node)
+	// choose subtree
+	index := -1
+	narea := 0.0
+	// first take a quick look for any nodes that contain the rect
 	for i := 0; i < n.count; i++ {
 		if n.rects[i].contains(item) {
-			return i
+			area := n.rects[i].area()
+			if index == -1 || area < narea {
+				narea = area
+				index = i
+			}
 		}
 	}
-	return r.chooseSubtreeLeastEnlargement(item)
+	// found nothing, now go the slow path
+	if index == -1 {
+		index = r.chooseLeastEnlargement(item)
+	}
+	// insert the item into the child node
+	child := &n.rects[index]
+	grown = child.insert(item, height-1)
+	if grown {
+		child.expand(item)
+		grown = !r.contains(item)
+	}
+	if child.data.(*node).count == maxEntries {
+		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
+		n.count++
+	}
+	return grown
 }
 
 // fit an external item into a rect type
@@ -279,7 +216,7 @@ func fit(min, max [2]float64, value interface{}, target *rect) {
 	target.data = value
 }
 
-// intersect return true if two rectangles intersect.
+// contains return struct when b is fully contained inside of n
 func (r *rect) intersects(b *rect) bool {
 	if b.min[0] > r.max[0] || b.max[0] < r.min[0] {
 		return false
@@ -291,7 +228,7 @@ func (r *rect) intersects(b *rect) bool {
 }
 
 func (r *rect) search(
-	target rect, height int16,
+	target rect, height int,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
@@ -327,6 +264,7 @@ func (tr *RTree) search(
 	}
 }
 
+// Search ...
 func (tr *RTree) Search(
 	min, max [2]float64,
 	iter func(min, max [2]float64, value interface{}) bool,
@@ -335,7 +273,7 @@ func (tr *RTree) Search(
 }
 
 func (r *rect) scan(
-	height int16,
+	height int,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
@@ -402,7 +340,7 @@ func (tr *RTree) deleteWithResult(min, max [2]float64, data interface{}) bool {
 	return true
 }
 
-func (r *rect) delete(tr *RTree, item *rect, height int16,
+func (r *rect) delete(tr *RTree, item *rect, height int,
 ) (removed, recalced bool) {
 	n := r.data.(*node)
 	rects := n.rects[0:n.count]
@@ -449,7 +387,7 @@ func (r *rect) delete(tr *RTree, item *rect, height int16,
 }
 
 // flatten all leaf rects into a single list
-func (r *rect) flatten(all []rect, height int16) []rect {
+func (r *rect) flatten(all []rect, height int) []rect {
 	n := r.data.(*node)
 	if height == 0 {
 		all = append(all, n.rects[:n.count]...)
