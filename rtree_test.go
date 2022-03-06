@@ -132,9 +132,9 @@ func rSaneRect(r rect) error {
 	return nil
 }
 
-func rSaneNode(tr *RTree, r *rect, height int) error {
+func rSaneNode(tr *RTree, r *rect, height int16) error {
 	n := r.data.(*node)
-	if n.count >= maxEntries {
+	if n.count > maxEntries {
 		return errors.New("invalid count")
 	}
 	for i := 0; i < n.count; i++ {

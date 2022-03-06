@@ -27,7 +27,8 @@ type node struct {
 
 // RTree ...
 type RTree struct {
-	height   int
+	algo     Algorithm
+	height   int16
 	root     rect
 	count    int
 	reinsert []rect
@@ -69,11 +70,8 @@ func (tr *RTree) insert(item *rect) {
 	if tr.root.data == nil {
 		fit(item.min, item.max, new(node), &tr.root)
 	}
-	grown := tr.root.insert(item, tr.height)
-	if grown {
-		tr.root.expand(item)
-	}
-	if tr.root.data.(*node).count == maxEntries {
+	grown, split := tr.nodeInsert(&tr.root, item, tr.height)
+	if split {
 		newRoot := new(node)
 		tr.root.splitLargestAxisEdgeSnap(&newRoot.rects[1])
 		newRoot.rects[0] = tr.root
@@ -81,6 +79,11 @@ func (tr *RTree) insert(item *rect) {
 		tr.root.data = newRoot
 		tr.root.recalc()
 		tr.height++
+		tr.insert(item)
+		return
+	}
+	if grown {
+		tr.root.expand(item)
 	}
 	tr.count++
 }
@@ -169,13 +172,18 @@ func (r *rect) splitLargestAxisEdgeSnap(right *rect) {
 	right.recalc()
 }
 
-func (r *rect) insert(item *rect, height int) (grown bool) {
+func (tr *RTree) nodeInsert(r *rect, item *rect, height int16,
+) (grown, split bool) {
 	n := r.data.(*node)
 	if height == 0 {
+		// leaf node
+		if n.count == maxEntries {
+			return false, true
+		}
 		n.rects[n.count] = *item
 		n.count++
 		grown = !r.contains(item)
-		return grown
+		return grown, false
 	}
 
 	// choose subtree
@@ -197,16 +205,20 @@ func (r *rect) insert(item *rect, height int) (grown bool) {
 	}
 	// insert the item into the child node
 	child := &n.rects[index]
-	grown = child.insert(item, height-1)
+	grown, split = tr.nodeInsert(child, item, height-1)
+	if split {
+		if n.count == maxEntries {
+			return false, true
+		}
+		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
+		n.count++
+		return tr.nodeInsert(r, item, height)
+	}
 	if grown {
 		child.expand(item)
 		grown = !r.contains(item)
 	}
-	if child.data.(*node).count == maxEntries {
-		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
-		n.count++
-	}
-	return grown
+	return grown, false
 }
 
 // fit an external item into a rect type
@@ -228,7 +240,7 @@ func (r *rect) intersects(b *rect) bool {
 }
 
 func (r *rect) search(
-	target rect, height int,
+	target rect, height int16,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
@@ -273,7 +285,7 @@ func (tr *RTree) Search(
 }
 
 func (r *rect) scan(
-	height int,
+	height int16,
 	iter func(min, max [2]float64, value interface{}) bool,
 ) bool {
 	n := r.data.(*node)
@@ -340,7 +352,7 @@ func (tr *RTree) deleteWithResult(min, max [2]float64, data interface{}) bool {
 	return true
 }
 
-func (r *rect) delete(tr *RTree, item *rect, height int,
+func (r *rect) delete(tr *RTree, item *rect, height int16,
 ) (removed, recalced bool) {
 	n := r.data.(*node)
 	rects := n.rects[0:n.count]
@@ -387,7 +399,7 @@ func (r *rect) delete(tr *RTree, item *rect, height int,
 }
 
 // flatten all leaf rects into a single list
-func (r *rect) flatten(all []rect, height int) []rect {
+func (r *rect) flatten(all []rect, height int16) []rect {
 	n := r.data.(*node)
 	if height == 0 {
 		all = append(all, n.rects[:n.count]...)
@@ -474,4 +486,15 @@ func (tr *RTree) Replace(
 	if tr.deleteWithResult(oldMin, oldMax, oldData) {
 		tr.Insert(newMin, newMax, newData)
 	}
+}
+
+type Algorithm byte
+
+const (
+	RBang Algorithm = iota
+	RStar
+)
+
+func (tr *RTree) SetAlgorithm(algo Algorithm) {
+	tr.algo = algo
 }
