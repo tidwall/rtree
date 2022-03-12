@@ -348,12 +348,13 @@ func (r *rect) delete(tr *RTree, item *rect, height int,
 		for i := 0; i < len(rects); i++ {
 			if rects[i].data == item.data {
 				// found the target item to delete
-				recalced = r.onEdge(&rects[i])
+				onedge := rects[i].onEdge(r)
 				rects[i] = rects[len(rects)-1]
 				rects[len(rects)-1].data = nil
 				n.count--
-				if recalced {
+				if onedge {
 					r.recalc()
+					recalced = true
 				}
 				return true, recalced
 			}
@@ -369,16 +370,20 @@ func (r *rect) delete(tr *RTree, item *rect, height int,
 			}
 			if rects[i].data.(*node).count < minEntries {
 				// underflow
-				if !recalced {
-					recalced = r.onEdge(&rects[i])
-				}
 				tr.reinsert = rects[i].flatten(tr.reinsert, height-1)
 				rects[i] = rects[len(rects)-1]
 				rects[len(rects)-1].data = nil
 				n.count--
-			}
-			if recalced {
 				r.recalc()
+				recalced = true
+			} else {
+				if recalced {
+					onedge := rects[i].onEdge(r)
+					if onedge {
+						r.recalc()
+						recalced = true
+					}
+				}
 			}
 			return removed, recalced
 		}
@@ -399,15 +404,9 @@ func (r *rect) flatten(all []rect, height int) []rect {
 	return all
 }
 
-// onedge returns true when b is on the edge of r
 func (r *rect) onEdge(b *rect) bool {
-	if r.min[0] == b.min[0] || r.max[0] == b.max[0] {
-		return true
-	}
-	if r.min[1] == b.min[1] || r.max[1] == b.max[1] {
-		return true
-	}
-	return false
+	return !(r.min[0] > b.min[0] && r.min[1] > b.min[1] &&
+		r.max[0] < b.max[0] && r.max[1] < b.max[1])
 }
 
 // Len returns the number of items in tree
