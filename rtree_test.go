@@ -62,14 +62,13 @@ func TestSane(t *testing.T) {
 		if n%2 == 1 {
 			n++
 		}
-
 		points[0][0] = 360*rng.Float64() - 180
 		points[0][1] = 180*rng.Float64() - 90
 		for i := 1; i < n; i++ {
 			points[i][0] = points[i-1][0] + rng.Float64() - 0.5
 			points[i][1] = points[i-1][1] + rng.Float64() - 0.5
 		}
-		var tr RTree
+		var tr Generic[any]
 		for i := 0; i < n-1; i += 2 {
 			minx := points[i+0][0]
 			miny := points[i+0][1]
@@ -108,7 +107,7 @@ func TestSane(t *testing.T) {
 	}
 }
 
-func rSane(tr *RTree) error {
+func rSane(tr *Generic[any]) error {
 	height := tr.height
 	if height > 0 && tr.root.data == nil {
 		return errors.New("not nil root")
@@ -125,15 +124,15 @@ func rSane(tr *RTree) error {
 	return rSaneNode(tr, &tr.root, height)
 }
 
-func rSaneRect(r rect) error {
+func rSaneRect[T any](r rect[T]) error {
 	if r.min[0] > r.max[0] || r.min[1] > r.max[1] {
 		return errors.New("invalid rect")
 	}
 	return nil
 }
 
-func rSaneNode(tr *RTree, r *rect, height int) error {
-	n := r.data.(*node)
+func rSaneNode[T any](tr *Generic[any], r *rect[T], height int) error {
+	n := r.data.(*node[T])
 	if n.count >= maxEntries {
 		return errors.New("invalid count")
 	}

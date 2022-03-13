@@ -32,14 +32,46 @@ tr.Insert([2]float64{10, 10}, [2]float64{20, 20}, "rect")
 
 // search 
 tr.Search([2]float64{-112.1, 33.4}, [2]float64{-112.0, 33.5}, 
- 	func(min, max [2]float64, value interface{}) bool {
-		println(value.(string)) // prints "PHX"
+ 	func(min, max [2]float64, data interface{}) bool {
+		println(data.(string)) // prints "PHX"
 	},
 )
 
 // delete 
 tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
 ```
+
+### Support for Generics (Go 1.18+)
+
+Go 1.18 is still in development. 
+To use the generics version of this library run:
+
+```sh
+$ go get github.com/tidwall/rtree@generics
+```
+
+```go
+// create a 2D RTree
+var tr rtree.Generic[string]
+
+// insert a point
+tr.Insert([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
+
+// insert a rect
+tr.Insert([2]float64{10, 10}, [2]float64{20, 20}, "rect")
+
+// search 
+tr.Search([2]float64{-112.1, 33.4}, [2]float64{-112.0, 33.5}, 
+ 	func(min, max [2]float64, data string) bool {
+		println(data) // prints "PHX"
+	},
+)
+
+// delete 
+tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
+```
+
+
 
 ## Algorithms
 
