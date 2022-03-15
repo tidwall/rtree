@@ -43,13 +43,6 @@ tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
 
 ### Support for Generics (Go 1.18+)
 
-Go 1.18 is still in development. 
-To use the generics version of this library run:
-
-```sh
-$ go get github.com/tidwall/rtree@generics
-```
-
 ```go
 // create a 2D RTree
 var tr rtree.Generic[string]
@@ -71,8 +64,6 @@ tr.Search([2]float64{-112.1, 33.4}, [2]float64{-112.0, 33.5},
 tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
 ```
 
-
-
 ## Algorithms
 
 This implementation is a variant of the original paper:  
@@ -80,11 +71,21 @@ This implementation is a variant of the original paper:
 
 ### Inserting
 
-Same as the original algorithm. From the root to the leaf, the rects which will incur the least enlargment are chosen. Ties go to rects with the smallest area.
+Similar to the original algorithm. From the root to the leaf, the rects which
+will incur the least enlargment are chosen. Ties go to rects with the smallest
+area. 
+
+Added to this implementation: when a rect does not incur any enlargement at
+all, it's chosen immediately and without further checks on other rects in the 
+same node. This make point insertion faster.
 
 ### Deleting
 
 Same as the original algorithm. A target rect is deleted directly. When the number of children in a rect falls below it's minumum entries, it is removed from the tree and it's items are re-inserted.
+
+### Searching
+
+Same as the original algorithm.
 
 ### Splitting
 
