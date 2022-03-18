@@ -6,13 +6,15 @@ package rtree
 
 import (
 	"math"
+	"sort"
 
 	"github.com/tidwall/geoindex/child"
 )
 
 const (
-	maxEntries = 32
-	minEntries = maxEntries * 20 / 100
+	maxEntries  = 64
+	minEntries  = maxEntries * 10 / 100
+	withSorting = true
 )
 
 type rect[T any] struct {
@@ -197,15 +199,23 @@ func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
 	// insert the item into the child node
 	child := &n.rects[index]
 	grown = child.insert(item, height-1)
+	split := child.data.(*node[T]).count == maxEntries
 	if grown {
 		child.expand(item)
 		grown = !r.contains(item)
 	}
-	if child.data.(*node[T]).count == maxEntries {
+	if split {
 		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
 		n.count++
+		n.sort()
 	}
 	return grown
+}
+
+func (n *node[T]) sort() {
+	sort.Slice(n.rects[:n.count], func(i, j int) bool {
+		return n.rects[i].min[0] < n.rects[j].min[0]
+	})
 }
 
 // fit an external item into a rect type
@@ -215,7 +225,7 @@ func fit[T any](min, max [2]float64, value interface{}, target *rect[T]) {
 	target.data = value
 }
 
-// contains return struct when b is fully contained inside of n
+// intersects returns true if both rects intersect each other.
 func (r *rect[T]) intersects(b *rect[T]) bool {
 	if b.min[0] > r.max[0] || b.max[0] < r.min[0] {
 		return false
@@ -302,9 +312,9 @@ func (tr *Generic[T]) Scan(iter func(min, max [2]float64, data T) bool) {
 
 // Delete data from tree
 func (tr *Generic[T]) Delete(min, max [2]float64, data T) {
-	tr.deleteWithResult(min, max, data)
+	tr.delete(min, max, data)
 }
-func (tr *Generic[T]) deleteWithResult(min, max [2]float64, data T) bool {
+func (tr *Generic[T]) delete(min, max [2]float64, data T) (deleted bool) {
 	var item rect[T]
 	fit(min, max, data, &item)
 	if tr.root.data == nil || !tr.root.contains(&item) {
@@ -366,7 +376,8 @@ func (r *rect[T]) delete(tr *Generic[T], item *rect[T], height int,
 			if !removed {
 				continue
 			}
-			if rects[i].data.(*node[T]).count < minEntries {
+			underflow := rects[i].data.(*node[T]).count < minEntries
+			if underflow {
 				// underflow
 				if !recalced {
 					recalced = r.onEdge(&rects[i])
@@ -400,13 +411,15 @@ func (r *rect[T]) flatten(all []rect[T], height int) []rect[T] {
 
 // onedge returns true when b is on the edge of r
 func (r *rect[T]) onEdge(b *rect[T]) bool {
-	if r.min[0] == b.min[0] || r.max[0] == b.max[0] {
-		return true
-	}
-	if r.min[1] == b.min[1] || r.max[1] == b.max[1] {
-		return true
-	}
-	return false
+	return !(b.min[0] > r.min[0] && b.min[1] > r.min[1] &&
+		b.max[0] < r.max[0] && b.max[1] < r.max[1])
+	// if r.min[0] == b.min[0] || r.max[0] == b.max[0] {
+	// 	return true
+	// }
+	// if r.min[1] == b.min[1] || r.max[1] == b.max[1] {
+	// 	return true
+	// }
+	// return false
 }
 
 // Len returns the number of items in tree
@@ -470,7 +483,7 @@ func (tr *Generic[T]) Replace(
 	oldMin, oldMax [2]float64, oldData T,
 	newMin, newMax [2]float64, newData T,
 ) {
-	if tr.deleteWithResult(oldMin, oldMax, oldData) {
+	if tr.delete(oldMin, oldMax, oldData) {
 		tr.Insert(newMin, newMax, newData)
 	}
 }

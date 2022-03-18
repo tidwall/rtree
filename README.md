@@ -105,6 +105,9 @@ When the `max-dist` is less than `min-dist` then the child is placed into the `r
 When the `min-dist` is equal to `max-dist` then the child is placed into an `equal` bucket until all of the children are evaluated.
 Each `equal` rect is then one-by-one placed in either `left` or `right`, whichever has less children.
 
+Finally, the sort all the rects in the parent node of the split rect by their
+minimum x value.
+
 ## License
 
 rtree source code is available under the MIT License.
