@@ -76,7 +76,7 @@ func (tr *Generic[T]) insert(item *rect[T]) {
 	}
 	if tr.root.data.(*node[T]).count == maxEntries {
 		newRoot := new(node[T])
-		tr.root.splitLargestAxisEdgeSnap(&newRoot.rects[1])
+		tr.root.splitMinOverlapEdgeSnap(&newRoot.rects[1])
 		newRoot.rects[0] = tr.root
 		newRoot.count = 2
 		tr.root.data = newRoot
@@ -129,32 +129,27 @@ func (r *rect[T]) largestAxis() (axis int, size float64) {
 	return 0, r.max[0] - r.min[0]
 }
 
-func (r *rect[T]) splitLargestAxisEdgeSnap(right *rect[T]) {
-	axis, _ := r.largestAxis()
-	left := r
-	leftNode := left.data.(*node[T])
-	rightNode := new(node[T])
+func (r *rect[T]) splitAxisEdgeSnap(axis int) (*rect[T], *rect[T]) {
+	left, right := new(rect[T]), new(rect[T])
+	leftNode, rightNode := new(node[T]), new(node[T])
+	left.data = leftNode
 	right.data = rightNode
-
 	var equals []rect[T]
-	for i := 0; i < leftNode.count; i++ {
-		minDist := leftNode.rects[i].min[axis] - left.min[axis]
-		maxDist := left.max[axis] - leftNode.rects[i].max[axis]
+	for i := 0; i < r.data.(*node[T]).count; i++ {
+		minDist := r.data.(*node[T]).rects[i].min[axis] - r.min[axis]
+		maxDist := r.max[axis] - r.data.(*node[T]).rects[i].max[axis]
 		if minDist < maxDist {
-			// stay left
+			leftNode.rects[leftNode.count] = r.data.(*node[T]).rects[i]
+			leftNode.count++
 		} else {
 			if minDist > maxDist {
 				// move to right
-				rightNode.rects[rightNode.count] = leftNode.rects[i]
+				rightNode.rects[rightNode.count] = r.data.(*node[T]).rects[i]
 				rightNode.count++
 			} else {
 				// move to equals, at the end of the left array
-				equals = append(equals, leftNode.rects[i])
+				equals = append(equals, r.data.(*node[T]).rects[i])
 			}
-			leftNode.rects[i] = leftNode.rects[leftNode.count-1]
-			leftNode.rects[leftNode.count-1].data = nil
-			leftNode.count--
-			i--
 		}
 	}
 	for _, b := range equals {
@@ -168,6 +163,44 @@ func (r *rect[T]) splitLargestAxisEdgeSnap(right *rect[T]) {
 	}
 	left.recalc()
 	right.recalc()
+
+	return left, right
+}
+
+func (r *rect[T]) overlapArea(left, right *rect[T]) float64 {
+	disX := math.Min(left.max[0], right.max[0]) - math.Max(left.min[0], right.min[0])
+	disY := math.Min(left.max[1], right.max[1]) - math.Max(left.min[1], right.min[1])
+	if disX > 0 && disY > 0 {
+		return disX * disY
+	}
+
+	// rects dose not overlap
+	return 0
+}
+
+func (r *rect[T]) splitMinOverlapEdgeSnap(right *rect[T]) {
+	leftRectX, rightRectX := r.splitAxisEdgeSnap(0)
+	overlapAreaX := r.overlapArea(leftRectX, rightRectX)
+
+	leftRectY, rightRectY := r.splitAxisEdgeSnap(1)
+	overlapAreaY := r.overlapArea(leftRectY, rightRectY)
+
+	if overlapAreaY == overlapAreaX {
+		largesAxis, _ := r.largestAxis()
+		if largesAxis == 0 {
+			*r = *leftRectX
+			*right = *rightRectX
+		} else {
+			*r = *leftRectX
+			*right = *rightRectX
+		}
+	} else if overlapAreaY < overlapAreaX {
+		*r = *leftRectY
+		*right = *rightRectY
+	} else {
+		*r = *leftRectX
+		*right = *rightRectX
+	}
 }
 
 func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
@@ -205,7 +238,7 @@ func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
 		grown = !r.contains(item)
 	}
 	if split {
-		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
+		child.splitMinOverlapEdgeSnap(&n.rects[n.count])
 		n.count++
 		n.sort()
 	}
