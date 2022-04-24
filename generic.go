@@ -5,7 +5,6 @@
 package rtree
 
 import (
-	"math"
 	"sort"
 
 	"github.com/tidwall/geoindex/child"
@@ -53,10 +52,23 @@ func (r *rect[T]) area() float64 {
 	return (r.max[0] - r.min[0]) * (r.max[1] - r.min[1])
 }
 
+func fmin(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+func fmax(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // unionedArea returns the area of two rects expanded
 func (r *rect[T]) unionedArea(b *rect[T]) float64 {
-	return (math.Max(r.max[0], b.max[0]) - math.Min(r.min[0], b.min[0])) *
-		(math.Max(r.max[1], b.max[1]) - math.Min(r.min[1], b.min[1]))
+	return (fmax(r.max[0], b.max[0]) - fmin(r.min[0], b.min[0])) *
+		(fmax(r.max[1], b.max[1]) - fmin(r.min[1], b.min[1]))
 }
 
 // Insert data into tree
@@ -73,6 +85,9 @@ func (tr *Generic[T]) insert(item *rect[T]) {
 	grown := tr.root.insert(item, tr.height)
 	if grown {
 		tr.root.expand(item)
+		if withSorting {
+			tr.root.data.(*node[T]).sort()
+		}
 	}
 	if tr.root.data.(*node[T]).count == maxEntries {
 		newRoot := new(node[T])
@@ -82,6 +97,9 @@ func (tr *Generic[T]) insert(item *rect[T]) {
 		tr.root.data = newRoot
 		tr.root.recalc()
 		tr.height++
+		if withSorting {
+			tr.root.data.(*node[T]).sort()
+		}
 	}
 	tr.count++
 }
@@ -207,7 +225,9 @@ func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
 	if split {
 		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
 		n.count++
-		n.sort()
+		if withSorting {
+			n.sort()
+		}
 	}
 	return grown
 }
