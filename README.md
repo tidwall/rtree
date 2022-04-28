@@ -6,7 +6,7 @@ This package provides an in-memory R-Tree implementation for Go. It's designed
 for [Tile38](https://github.com/tidwall/tile38) and is optimized for fast rect 
 inserts and replacements.
 
-<img src="cities.png" width="512" height="256" border="0" alt="Cities">
+<img src="cities.png" width="512" border="0" alt="Cities">
 
 ## Usage
 
