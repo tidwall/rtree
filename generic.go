@@ -154,36 +154,48 @@ func (r *rect[T]) splitLargestAxisEdgeSnap(right *rect[T]) {
 	rightNode := new(node[T])
 	right.data = rightNode
 
-	var equals []rect[T]
 	for i := 0; i < leftNode.count; i++ {
 		minDist := leftNode.rects[i].min[axis] - left.min[axis]
 		maxDist := left.max[axis] - leftNode.rects[i].max[axis]
 		if minDist < maxDist {
 			// stay left
 		} else {
-			if minDist > maxDist {
-				// move to right
-				rightNode.rects[rightNode.count] = leftNode.rects[i]
-				rightNode.count++
-			} else {
-				// move to equals, at the end of the left array
-				equals = append(equals, leftNode.rects[i])
-			}
+			// move to right
+			rightNode.rects[rightNode.count] = leftNode.rects[i]
+			rightNode.count++
 			leftNode.rects[i] = leftNode.rects[leftNode.count-1]
 			leftNode.rects[leftNode.count-1].data = nil
 			leftNode.count--
 			i--
 		}
 	}
-	for _, b := range equals {
-		if leftNode.count < rightNode.count {
-			leftNode.rects[leftNode.count] = b
+
+	// Make sure that both left and right nodes have at least
+	// minEntries by moving items into underflowed nodes.
+	if leftNode.count < minEntries {
+		// reverse sort by min axis
+		sort.Slice(rightNode.rects[:rightNode.count], func(i, j int) bool {
+			return rightNode.rects[j].min[axis] < rightNode.rects[i].min[axis]
+		})
+		for leftNode.count < minEntries {
+			leftNode.rects[leftNode.count] = rightNode.rects[rightNode.count-1]
 			leftNode.count++
-		} else {
-			rightNode.rects[rightNode.count] = b
+			rightNode.rects[rightNode.count-1].data = nil
+			rightNode.count--
+		}
+	} else if rightNode.count < minEntries {
+		// reverse sort by max axis
+		sort.Slice(leftNode.rects[:leftNode.count], func(i, j int) bool {
+			return leftNode.rects[j].max[axis] < leftNode.rects[i].max[axis]
+		})
+		for rightNode.count < minEntries {
+			rightNode.rects[rightNode.count] = leftNode.rects[leftNode.count-1]
 			rightNode.count++
+			leftNode.rects[leftNode.count-1].data = nil
+			leftNode.count--
 		}
 	}
+
 	left.recalc()
 	right.recalc()
 }
@@ -225,9 +237,7 @@ func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
 	if split {
 		child.splitLargestAxisEdgeSnap(&n.rects[n.count])
 		n.count++
-		if withSorting {
-			n.sort()
-		}
+		n.sort()
 	}
 	return grown
 }
