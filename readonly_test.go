@@ -88,7 +88,8 @@ func TestReadOnlyScan(t *testing.T) {
 		t.Logf("check %v -> %v (%d)\n", min, max, value)
 		return true
 	}
-	tr.Scan(fn)
+	ro := NewReadOnly(tr)
+	ro.Scan(fn)
 	if count != len(boxen) {
 		t.Errorf("want %d rects -- have %d", len(boxen), count)
 	}

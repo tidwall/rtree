@@ -80,12 +80,15 @@ func (tr *ReadOnly[T]) Scan(
 }
 
 func (tr *ReadOnly[T]) scan(
-	r RRect[T],
+	pr RRect[T],
 	iter func(min, max [2]float64, value T) bool,
 ) bool {
-	for i := r.Node.Start; i < r.Node.End; i++ {
-		r = tr.Rects[i]
+	for i := pr.Node.Start; i < pr.Node.End; i++ {
+		r := tr.Rects[i]
 		if !iter(r.Min, r.Max, r.Value) {
+			return false
+		}
+		if !tr.scan(r, iter) {
 			return false
 		}
 	}
