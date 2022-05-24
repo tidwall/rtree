@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	maxEntries  = 64
-	minEntries  = maxEntries * 10 / 100
-	withSorting = true
+	maxEntries = 64
+	minEntries = maxEntries * 10 / 100
 )
 
 type rect[T any] struct {
@@ -85,9 +84,7 @@ func (tr *Generic[T]) insert(item *rect[T]) {
 	grown := tr.root.insert(item, tr.height)
 	if grown {
 		tr.root.expand(item)
-		if withSorting {
-			tr.root.data.(*node[T]).sort()
-		}
+		tr.root.data.(*node[T]).sort()
 	}
 	if tr.root.data.(*node[T]).count == maxEntries {
 		newRoot := new(node[T])
@@ -97,9 +94,7 @@ func (tr *Generic[T]) insert(item *rect[T]) {
 		tr.root.data = newRoot
 		tr.root.recalc()
 		tr.height++
-		if withSorting {
-			tr.root.data.(*node[T]).sort()
-		}
+		tr.root.data.(*node[T]).sort()
 	}
 	tr.count++
 }
@@ -443,13 +438,6 @@ func (r *rect[T]) flatten(all []rect[T], height int) []rect[T] {
 func (r *rect[T]) onEdge(b *rect[T]) bool {
 	return !(b.min[0] > r.min[0] && b.min[1] > r.min[1] &&
 		b.max[0] < r.max[0] && b.max[1] < r.max[1])
-	// if r.min[0] == b.min[0] || r.max[0] == b.max[0] {
-	// 	return true
-	// }
-	// if r.min[1] == b.min[1] || r.max[1] == b.max[1] {
-	// 	return true
-	// }
-	// return false
 }
 
 // Len returns the number of items in tree
