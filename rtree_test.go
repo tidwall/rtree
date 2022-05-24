@@ -8,8 +8,11 @@ import (
 	"errors"
 	"math/rand"
 	"os"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -112,7 +115,7 @@ func TestSane(t *testing.T) {
 	}
 }
 
-func rSane(tr *Generic[any]) error {
+func rSane[T any](tr *Generic[T]) error {
 	height := tr.height
 	if height > 0 && tr.root.data == nil {
 		return errors.New("not nil root")
@@ -126,7 +129,7 @@ func rSane(tr *Generic[any]) error {
 	if tr.root.data == nil {
 		return nil
 	}
-	return rSaneNode(tr, &tr.root, height)
+	return rSaneNode[T](tr, &tr.root, height)
 }
 
 func rSaneRect[T any](r rect[T]) error {
@@ -136,7 +139,7 @@ func rSaneRect[T any](r rect[T]) error {
 	return nil
 }
 
-func rSaneNode[T any](tr *Generic[any], r *rect[T], height int) error {
+func rSaneNode[T any](tr *Generic[T], r *rect[T], height int) error {
 	n := r.data.(*node[T])
 	if n.count >= maxEntries {
 		return errors.New("invalid count")
@@ -321,4 +324,144 @@ func TestPredefinedSVG(t *testing.T) {
 
 func TestCitiesSVG(t *testing.T) {
 	writeSVG(citiesPts, "cities.svg")
+}
+
+type testPoint struct {
+	x, y float64 // random coords
+	data uint64  // random uint64
+}
+
+func (pt *testPoint) coord() [2]float64 {
+	return [2]float64{pt.x, pt.y}
+}
+
+func randTestPoint() testPoint {
+	return testPoint{
+		x:    rand.Float64()*360 - 180,
+		y:    rand.Float64()*180 - 90,
+		data: rand.Uint64(),
+	}
+}
+
+func sortTestPoints(pts []testPoint) {
+	sort.Slice(pts, func(i, j int) bool {
+		if pts[i].data < pts[j].data {
+			return true
+		}
+		if pts[i].data > pts[j].data {
+			return false
+		}
+		if pts[i].x < pts[j].x {
+			return true
+		}
+		if pts[i].x > pts[j].x {
+			return false
+		}
+		return pts[i].y < pts[j].y
+	})
+}
+func shuffleTestPoints(pts []testPoint) {
+	rand.Shuffle(len(pts), func(i, j int) {
+		pts[i], pts[j] = pts[j], pts[i]
+	})
+}
+
+func treePointsMatch(tr *Generic[testPoint], pts []testPoint) {
+	var pts2 []testPoint
+	tr.Scan(func(min, max [2]float64, pt testPoint) bool {
+		if pt.coord() != min || pt.coord() != max {
+			panic("bad coord")
+		}
+		pts2 = append(pts2, pt)
+		return true
+	})
+	sortTestPoints(pts)
+	sortTestPoints(pts2)
+	if len(pts) != len(pts2) {
+		panic("len mismatch")
+	}
+	for i := 0; i < len(pts); i++ {
+		if pts[i] != pts2[i] {
+			panic("point mismatch")
+		}
+	}
+}
+
+func testCopyOnWriteChild(wg *sync.WaitGroup,
+	tr *Generic[testPoint], pts []testPoint,
+	depth int,
+) {
+	defer wg.Done()
+	start := time.Now()
+	for time.Since(start) < time.Second*2 {
+		shuffleTestPoints(pts)
+		half := len(pts) / 2
+		for i := 0; i < half; i++ {
+			tr.Delete(pts[i].coord(), pts[i].coord(), pts[i])
+		}
+		for i := 0; i < half; i++ {
+			pts[i] = randTestPoint()
+			tr.Insert(pts[i].coord(), pts[i].coord(), pts[i])
+		}
+		if depth == 2 {
+			break
+		}
+	}
+	if depth == 1 {
+		var wg2 sync.WaitGroup
+		T := 20
+		for i := 0; i < T; i++ {
+			wg2.Add(1)
+			tr2 := tr.Copy()
+			pts2 := append([]testPoint{}, pts...)
+			go testCopyOnWriteChild(&wg2, tr2, pts2, 2)
+		}
+		start := time.Now()
+		for time.Since(start) < time.Second*2 {
+			runtime.Gosched()
+			treePointsMatch(tr, pts)
+			if err := rSane(tr); err != nil {
+				panic(err)
+			}
+		}
+		wg2.Wait()
+	}
+	if err := rSane(tr); err != nil {
+		panic(err)
+	}
+}
+
+func TestCopyOnWrite(t *testing.T) {
+	// Create a tree with 100,000 random points
+	// Then continually check that it's sane
+	N := 50_000
+	T := 20
+	pts := make([]testPoint, N)
+	for i := range pts {
+		pts[i] = randTestPoint()
+	}
+	tr := new(Generic[testPoint])
+	for _, pt := range pts {
+		tr.Insert(pt.coord(), pt.coord(), pt)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < T; i++ {
+		wg.Add(1)
+		tr2 := tr.Copy()
+		pts2 := append([]testPoint{}, pts...)
+		go testCopyOnWriteChild(&wg, tr2, pts2, 1)
+	}
+	start := time.Now()
+	for time.Since(start) < time.Second*2 {
+		runtime.Gosched()
+		treePointsMatch(tr, pts)
+		if err := rSane(tr); err != nil {
+			panic(err)
+		}
+	}
+	wg.Wait()
+	if err := rSane(tr); err != nil {
+		panic(err)
+	}
+
 }

@@ -16,16 +16,21 @@ const (
 )
 
 type rect[T any] struct {
-	min, max [2]float64
-	data     interface{}
+	min  [2]float64
+	max  [2]float64
+	data interface{}
 }
 
+type cow struct{ int }
+
 type node[T any] struct {
+	cow   *cow
 	count int
 	rects [maxEntries]rect[T]
 }
 
 type Generic[T any] struct {
+	cow      *cow
 	height   int
 	root     rect[T]
 	count    int
@@ -77,11 +82,17 @@ func (tr *Generic[T]) Insert(min, max [2]float64, value T) {
 	tr.insert(&item)
 }
 
+func (tr *Generic[T]) newNode() *node[T] {
+	return &node[T]{cow: tr.cow}
+}
+
 func (tr *Generic[T]) insert(item *rect[T]) {
 	if tr.root.data == nil {
-		fit(item.min, item.max, new(node[T]), &tr.root)
+		tr.root.min = item.min
+		tr.root.max = item.max
+		tr.root.data = tr.newNode()
 	}
-	grown := tr.root.insert(item, tr.height)
+	grown := tr.nodeInsert(&tr.root, item, tr.height)
 	if grown {
 		tr.root.expand(item)
 		tr.root.data.(*node[T]).sort()
@@ -195,8 +206,26 @@ func (r *rect[T]) splitLargestAxisEdgeSnap(right *rect[T]) {
 	right.recalc()
 }
 
-func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
+func (tr *Generic[T]) cowCopy(r *rect[T]) *node[T] {
+	oldNode := r.data.(*node[T])
+	newNode := tr.newNode()
+	newNode.count = oldNode.count
+	copy(newNode.rects[:], oldNode.rects[:oldNode.count])
+	r.data = newNode
+	return newNode
+}
+
+func (tr *Generic[T]) cowLoad(r *rect[T]) *node[T] {
 	n := r.data.(*node[T])
+	if n.cow != tr.cow {
+		n = tr.cowCopy(r)
+	}
+	return n
+}
+
+func (tr *Generic[T]) nodeInsert(r *rect[T], item *rect[T], height int,
+) (grown bool) {
+	n := tr.cowLoad(r)
 	if height == 0 {
 		n.rects[n.count] = *item
 		n.count++
@@ -223,7 +252,7 @@ func (r *rect[T]) insert(item *rect[T], height int) (grown bool) {
 	}
 	// insert the item into the child node
 	child := &n.rects[index]
-	grown = child.insert(item, height-1)
+	grown = tr.nodeInsert(child, item, height-1)
 	split := child.data.(*node[T]).count == maxEntries
 	if grown {
 		child.expand(item)
@@ -346,7 +375,7 @@ func (tr *Generic[T]) delete(min, max [2]float64, data T) (deleted bool) {
 		return false
 	}
 	var removed, recalced bool
-	removed, recalced = tr.root.delete(tr, &item, tr.height)
+	removed, recalced = tr.nodeDelete(&tr.root, &item, tr.height)
 	if !removed {
 		return false
 	}
@@ -374,9 +403,9 @@ func (tr *Generic[T]) delete(min, max [2]float64, data T) (deleted bool) {
 	return true
 }
 
-func (r *rect[T]) delete(tr *Generic[T], item *rect[T], height int,
+func (tr *Generic[T]) nodeDelete(r *rect[T], item *rect[T], height int,
 ) (removed, recalced bool) {
-	n := r.data.(*node[T])
+	n := tr.cowLoad(r)
 	rects := n.rects[0:n.count]
 	if height == 0 {
 		for i := 0; i < len(rects); i++ {
@@ -397,7 +426,7 @@ func (r *rect[T]) delete(tr *Generic[T], item *rect[T], height int,
 			if !rects[i].contains(item) {
 				continue
 			}
-			removed, recalced = rects[i].delete(tr, item, height-1)
+			removed, recalced = tr.nodeDelete(&rects[i], item, height-1)
 			if !removed {
 				continue
 			}
@@ -504,4 +533,15 @@ func (tr *Generic[T]) Replace(
 	if tr.delete(oldMin, oldMax, oldData) {
 		tr.Insert(newMin, newMax, newData)
 	}
+}
+
+// Copy the tree.
+// This is a copy-on-write operation and is very fast because it only performs
+// a shadowed copy.
+func (tr *Generic[T]) Copy() *Generic[T] {
+	tr.cow = new(cow)
+	tr2 := new(Generic[T])
+	*tr2 = *tr
+	tr2.cow = new(cow)
+	return tr2
 }

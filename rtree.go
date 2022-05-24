@@ -59,3 +59,10 @@ func (tr *RTree) Bounds() (min, max [2]float64) {
 func (tr *RTree) Children(parent interface{}, reuse []child.Child) (children []child.Child) {
 	return tr.base.Children(parent, reuse)
 }
+
+// Copy the tree.
+// This is a copy-on-write operation and is very fast because it only performs
+// a shadowed copy.
+func (tr *RTree) Copy() *RTree {
+	return &RTree{base: *tr.base.Copy()}
+}
