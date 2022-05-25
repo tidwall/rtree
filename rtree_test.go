@@ -19,8 +19,13 @@ import (
 	"github.com/tidwall/geoindex"
 )
 
+var seed int64
+
 func init() {
-	seed := time.Now().UnixNano()
+	seed = time.Now().UnixNano()
+	if os.Getenv("SEED") != "" {
+		seed, _ = strconv.ParseInt(os.Getenv("SEED"), 10, 64)
+	}
 	println("seed:", seed)
 	rand.Seed(seed)
 }
@@ -387,7 +392,7 @@ func treePointsMatch(tr *Generic[testPoint], pts []testPoint) {
 	}
 }
 
-func testCopyOnWriteChild(wg *sync.WaitGroup,
+func testCopyOnWriteChild(T int, wg *sync.WaitGroup,
 	tr *Generic[testPoint], pts []testPoint,
 	depth int,
 ) {
@@ -409,12 +414,11 @@ func testCopyOnWriteChild(wg *sync.WaitGroup,
 	}
 	if depth == 1 {
 		var wg2 sync.WaitGroup
-		T := 20
 		for i := 0; i < T; i++ {
 			wg2.Add(1)
 			tr2 := tr.Copy()
 			pts2 := append([]testPoint{}, pts...)
-			go testCopyOnWriteChild(&wg2, tr2, pts2, 2)
+			go testCopyOnWriteChild(T, &wg2, tr2, pts2, 2)
 		}
 		start := time.Now()
 		for time.Since(start) < time.Second*2 {
@@ -432,10 +436,11 @@ func testCopyOnWriteChild(wg *sync.WaitGroup,
 }
 
 func TestCopyOnWrite(t *testing.T) {
+	rand.Seed(seed)
 	// Create a tree with 100,000 random points
 	// Then continually check that it's sane
-	N := 50_000
-	T := 20
+	N := 10_000
+	T := 10
 	pts := make([]testPoint, N)
 	for i := range pts {
 		pts[i] = randTestPoint()
@@ -449,7 +454,7 @@ func TestCopyOnWrite(t *testing.T) {
 		wg.Add(1)
 		tr2 := tr.Copy()
 		pts2 := append([]testPoint{}, pts...)
-		go testCopyOnWriteChild(&wg, tr2, pts2, 1)
+		go testCopyOnWriteChild(T, &wg, tr2, pts2, 1)
 	}
 	start := time.Now()
 	for time.Since(start) < time.Second*2 {

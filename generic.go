@@ -543,5 +543,6 @@ func (tr *Generic[T]) Copy() *Generic[T] {
 	tr2 := new(Generic[T])
 	*tr2 = *tr
 	tr2.cow = new(cow)
+	tr2.reinsert = nil
 	return tr2
 }
