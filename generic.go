@@ -6,6 +6,7 @@ package rtree
 
 import (
 	"sort"
+	"sync/atomic"
 
 	"github.com/tidwall/geoindex/child"
 )
@@ -21,16 +22,16 @@ type rect[T any] struct {
 	data interface{}
 }
 
-type cow struct{ int }
+var gcow uint64
 
 type node[T any] struct {
-	cow   *cow
+	cow   uint64
 	count int
 	rects [maxEntries]rect[T]
 }
 
 type Generic[T any] struct {
-	cow      *cow
+	cow      uint64
 	height   int
 	root     rect[T]
 	count    int
@@ -539,10 +540,10 @@ func (tr *Generic[T]) Replace(
 // This is a copy-on-write operation and is very fast because it only performs
 // a shadowed copy.
 func (tr *Generic[T]) Copy() *Generic[T] {
-	tr.cow = new(cow)
+	tr.cow = atomic.AddUint64(&gcow, 1)
 	tr2 := new(Generic[T])
 	*tr2 = *tr
-	tr2.cow = new(cow)
+	tr2.cow = atomic.AddUint64(&gcow, 1)
 	tr2.reinsert = nil
 	return tr2
 }
