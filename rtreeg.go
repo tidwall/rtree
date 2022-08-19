@@ -30,7 +30,7 @@ type node[T any] struct {
 	rects [maxEntries]rect[T]
 }
 
-type Generic[T any] struct {
+type RTreeG[T any] struct {
 	cow      uint64
 	height   int
 	root     rect[T]
@@ -77,17 +77,17 @@ func (r *rect[T]) unionedArea(b *rect[T]) float64 {
 }
 
 // Insert data into tree
-func (tr *Generic[T]) Insert(min, max [2]float64, value T) {
+func (tr *RTreeG[T]) Insert(min, max [2]float64, value T) {
 	var item rect[T]
 	fit(min, max, value, &item)
 	tr.insert(&item)
 }
 
-func (tr *Generic[T]) newNode() *node[T] {
+func (tr *RTreeG[T]) newNode() *node[T] {
 	return &node[T]{cow: tr.cow}
 }
 
-func (tr *Generic[T]) insert(item *rect[T]) {
+func (tr *RTreeG[T]) insert(item *rect[T]) {
 	if tr.root.data == nil {
 		tr.root.min = item.min
 		tr.root.max = item.max
@@ -207,7 +207,7 @@ func (r *rect[T]) splitLargestAxisEdgeSnap(right *rect[T]) {
 	right.recalc()
 }
 
-func (tr *Generic[T]) cowCopy(r *rect[T]) *node[T] {
+func (tr *RTreeG[T]) cowCopy(r *rect[T]) *node[T] {
 	oldNode := r.data.(*node[T])
 	newNode := tr.newNode()
 	newNode.count = oldNode.count
@@ -216,7 +216,7 @@ func (tr *Generic[T]) cowCopy(r *rect[T]) *node[T] {
 	return newNode
 }
 
-func (tr *Generic[T]) cowLoad(r *rect[T]) *node[T] {
+func (tr *RTreeG[T]) cowLoad(r *rect[T]) *node[T] {
 	n := r.data.(*node[T])
 	if n.cow != tr.cow {
 		n = tr.cowCopy(r)
@@ -224,7 +224,7 @@ func (tr *Generic[T]) cowLoad(r *rect[T]) *node[T] {
 	return n
 }
 
-func (tr *Generic[T]) nodeInsert(r *rect[T], item *rect[T], height int,
+func (tr *RTreeG[T]) nodeInsert(r *rect[T], item *rect[T], height int,
 ) (grown bool) {
 	n := tr.cowLoad(r)
 	if height == 0 {
@@ -316,7 +316,7 @@ func (r *rect[T]) search(
 	return true
 }
 
-func (tr *Generic[T]) search(
+func (tr *RTreeG[T]) search(
 	target rect[T],
 	iter func(min, max [2]float64, value T) bool,
 ) {
@@ -329,7 +329,7 @@ func (tr *Generic[T]) search(
 }
 
 // Search ...
-func (tr *Generic[T]) Search(
+func (tr *RTreeG[T]) Search(
 	min, max [2]float64,
 	iter func(min, max [2]float64, value T) bool,
 ) {
@@ -358,7 +358,7 @@ func (r *rect[T]) scan(
 }
 
 // Scan iterates through all data in tree.
-func (tr *Generic[T]) Scan(iter func(min, max [2]float64, data T) bool) {
+func (tr *RTreeG[T]) Scan(iter func(min, max [2]float64, data T) bool) {
 	if tr.root.data == nil {
 		return
 	}
@@ -366,10 +366,10 @@ func (tr *Generic[T]) Scan(iter func(min, max [2]float64, data T) bool) {
 }
 
 // Delete data from tree
-func (tr *Generic[T]) Delete(min, max [2]float64, data T) {
+func (tr *RTreeG[T]) Delete(min, max [2]float64, data T) {
 	tr.delete(min, max, data)
 }
-func (tr *Generic[T]) delete(min, max [2]float64, data T) (deleted bool) {
+func (tr *RTreeG[T]) delete(min, max [2]float64, data T) (deleted bool) {
 	var item rect[T]
 	fit(min, max, data, &item)
 	if tr.root.data == nil || !tr.root.contains(&item) {
@@ -404,7 +404,7 @@ func (tr *Generic[T]) delete(min, max [2]float64, data T) (deleted bool) {
 	return true
 }
 
-func (tr *Generic[T]) nodeDelete(r *rect[T], item *rect[T], height int,
+func (tr *RTreeG[T]) nodeDelete(r *rect[T], item *rect[T], height int,
 ) (removed, recalced bool) {
 	n := tr.cowLoad(r)
 	rects := n.rects[0:n.count]
@@ -471,12 +471,12 @@ func (r *rect[T]) onEdge(b *rect[T]) bool {
 }
 
 // Len returns the number of items in tree
-func (tr *Generic[T]) Len() int {
+func (tr *RTreeG[T]) Len() int {
 	return tr.count
 }
 
 // Bounds returns the minimum bounding rect
-func (tr *Generic[T]) Bounds() (min, max [2]float64) {
+func (tr *RTreeG[T]) Bounds() (min, max [2]float64) {
 	if tr.root.data == nil {
 		return
 	}
@@ -489,7 +489,7 @@ func (tr *Generic[T]) Bounds() (min, max [2]float64) {
 // from all slices must be associated. Returns true for `items` when the the
 // item at the leaf level. The reuse buffers are empty length slices that can
 // optionally be used to avoid extra allocations.
-func (tr *Generic[T]) Children(
+func (tr *RTreeG[T]) Children(
 	parent interface{},
 	reuse []child.Child,
 ) []child.Child {
@@ -527,7 +527,7 @@ func (tr *Generic[T]) Children(
 
 // Replace an item.
 // If the old item does not exist then the new item is not inserted.
-func (tr *Generic[T]) Replace(
+func (tr *RTreeG[T]) Replace(
 	oldMin, oldMax [2]float64, oldData T,
 	newMin, newMax [2]float64, newData T,
 ) {
@@ -539,11 +539,21 @@ func (tr *Generic[T]) Replace(
 // Copy the tree.
 // This is a copy-on-write operation and is very fast because it only performs
 // a shadowed copy.
-func (tr *Generic[T]) Copy() *Generic[T] {
+func (tr *RTreeG[T]) Copy() *RTreeG[T] {
 	tr.cow = atomic.AddUint64(&gcow, 1)
-	tr2 := new(Generic[T])
+	tr2 := new(RTreeG[T])
 	*tr2 = *tr
 	tr2.cow = atomic.AddUint64(&gcow, 1)
 	tr2.reinsert = nil
 	return tr2
+}
+
+// Generic RTree
+// Deprecated: use RTreeG
+type Generic[T any] struct {
+	RTreeG[T]
+}
+
+func (tr *Generic[T]) Copy() *Generic[T] {
+	return &Generic[T]{*tr.RTreeG.Copy()}
 }
