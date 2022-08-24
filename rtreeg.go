@@ -33,7 +33,7 @@ const maxEntries = 64
 const minEntries = maxEntries * 10 / 100
 const orderBranches = true
 const orderLeaves = true
-const quickChooser = true
+const quickChooser = false
 
 // copy-on-write atomic incrementer
 var cow uint64
