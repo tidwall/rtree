@@ -1,9 +1,13 @@
+// Copyright 2021 Joshua J Baker. All rights reserved.
+// Use of this source code is governed by an MIT-style
+// license that can be found in the LICENSE file.
+
 package rtree
 
 import "github.com/tidwall/geoindex/child"
 
 type RTree struct {
-	base Generic[any]
+	base RTreeG[any]
 }
 
 // Insert an item into the structure
