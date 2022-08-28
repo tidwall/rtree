@@ -39,12 +39,11 @@ const quickChooser = false
 var cow uint64
 
 type RTreeG[T any] struct {
-	cow      uint64
-	count    int
-	rect     rect
-	root     *node[T]
-	reinsert []reinsertItem[T]
-	empty    T
+	cow   uint64
+	count int
+	rect  rect
+	root  *node[T]
+	empty T
 }
 
 type rect struct {
@@ -506,9 +505,7 @@ func (tr *RTreeG[T]) Copy() *RTreeG[T] {
 	tr2 := new(RTreeG[T])
 	*tr2 = *tr
 	tr.cow = atomic.AddUint64(&cow, 1)
-	tr.reinsert = nil
 	tr2.cow = atomic.AddUint64(&cow, 1)
-	tr2.reinsert = nil
 	return tr2
 }
 
@@ -597,11 +594,17 @@ func (tr *RTreeG[T]) delete(min, max [2]float64, data T) bool {
 	if tr.root == nil || !tr.rect.contains(&ir) {
 		return false
 	}
-	removed, _ := tr.nodeDelete(&tr.rect, &tr.root, &ir, data)
+	var reinsert []*node[T]
+	removed, _ := tr.nodeDelete(&tr.rect, &tr.root, &ir, data, &reinsert)
 	if !removed {
 		return false
 	}
-	tr.count -= len(tr.reinsert) + 1
+	tr.count--
+	if len(reinsert) > 0 {
+		for _, n := range reinsert {
+			tr.count -= n.deepCount()
+		}
+	}
 	if tr.count == 0 {
 		tr.root = nil
 		tr.rect.min = [2]float64{0, 0}
@@ -611,15 +614,9 @@ func (tr *RTreeG[T]) delete(min, max [2]float64, data T) bool {
 			tr.root = tr.root.children()[0]
 		}
 	}
-	if len(tr.reinsert) > 0 {
-		var def reinsertItem[T]
-		for i, item := range tr.reinsert {
-			tr.Insert(item.rect.min, item.rect.max, item.data)
-			tr.reinsert[i] = def
-		}
-		tr.reinsert = tr.reinsert[:0]
-		if cap(tr.reinsert) > maxEntries {
-			tr.reinsert = nil
+	if len(reinsert) > 0 {
+		for i := range reinsert {
+			tr.nodeReinsert(reinsert[i])
 		}
 	}
 	return true
@@ -630,6 +627,7 @@ func compare[T any](a, b T) bool {
 }
 
 func (tr *RTreeG[T]) nodeDelete(nr *rect, cn **node[T], ir *rect, data T,
+	reinsert *[]*node[T],
 ) (removed, shrunk bool) {
 	n := tr.cowLoad(cn)
 	rects := n.rects[:n.count]
@@ -662,12 +660,13 @@ func (tr *RTreeG[T]) nodeDelete(nr *rect, cn **node[T], ir *rect, data T,
 			continue
 		}
 		crect := rects[i]
-		removed, shrunk = tr.nodeDelete(&rects[i], &children[i], ir, data)
+		removed, shrunk = tr.nodeDelete(&rects[i], &children[i], ir, data,
+			reinsert)
 		if !removed {
 			continue
 		}
 		if children[i].count < minEntries {
-			tr.reinsert = children[i].flatten(tr.reinsert)
+			*reinsert = append(*reinsert, children[i])
 			if orderBranches {
 				copy(n.rects[i:n.count], n.rects[i+1:n.count])
 				copy(children[i:n.count], children[i+1:n.count])
@@ -706,20 +705,31 @@ type reinsertItem[T any] struct {
 	data T
 }
 
-func (n *node[T]) flatten(reinsert []reinsertItem[T]) []reinsertItem[T] {
+func (n *node[T]) deepCount() int {
 	if n.leaf() {
-		for i := 0; i < int(n.count); i++ {
-			reinsert = append(reinsert, reinsertItem[T]{
-				rect: n.rects[i],
-				data: n.items()[i],
-			})
+		return int(n.count)
+	}
+	var count int
+	children := n.children()[:n.count]
+	for i := 0; i < len(children); i++ {
+		count += children[i].deepCount()
+	}
+	return count
+}
+
+func (tr *RTreeG[T]) nodeReinsert(n *node[T]) {
+	if n.leaf() {
+		rects := n.rects[:n.count]
+		items := n.items()[:n.count]
+		for i := range rects {
+			tr.Insert(rects[i].min, rects[i].max, items[i])
 		}
 	} else {
-		for i := 0; i < int(n.count); i++ {
-			reinsert = n.children()[i].flatten(reinsert)
+		children := n.children()[:n.count]
+		for i := 0; i < len(children); i++ {
+			tr.nodeReinsert(children[i])
 		}
 	}
-	return reinsert
 }
 
 // onedge returns true when r is on the edge of b

@@ -101,6 +101,7 @@ func TestRTree(t *testing.T) {
 	lotsa.Ops(N, 1, func(i, _ int) {
 		tr.Insert(rects[i].min, rects[i].max, i)
 	})
+
 	fmt.Printf("search-item:  ")
 	var count int
 	lotsa.Ops(N, 1, func(i, _ int) {
