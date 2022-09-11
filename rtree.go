@@ -61,7 +61,15 @@ func (tr *RTree) Bounds() (min, max [2]float64) {
 // The reuse buffer is an empty length slice that can optionally be used
 // to avoid extra allocations.
 func (tr *RTree) Children(parent interface{}, reuse []child.Child) (children []child.Child) {
-	return tr.base.Children(parent, reuse)
+	return tr.base.children(parent, reuse)
+}
+
+// Bounds returns the minimum bounding box
+func (tr *RTree) Nearby(
+	algo func(min, max [2]float64, data interface{}, item bool) (dist float64),
+	iter func(min, max [2]float64, data interface{}, dist float64) bool,
+) {
+	tr.base.Nearby(algo, iter)
 }
 
 // Copy the tree.

@@ -5,6 +5,7 @@
 package rtree
 
 import (
+	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -44,6 +45,7 @@ type RTreeG[T any] struct {
 	rect  rect
 	root  *node[T]
 	empty T
+	qpool *sync.Pool
 }
 
 type rect struct {
@@ -134,6 +136,11 @@ func (n *node[T]) rect() rect {
 func (tr *RTreeG[T]) Insert(min, max [2]float64, data T) {
 	ir := rect{min, max}
 	if tr.root == nil {
+		if tr.qpool == nil {
+			tr.qpool = &sync.Pool{
+				New: func() any { return &queue[T]{} },
+			}
+		}
 		tr.root = tr.newNode(true)
 		tr.rect = ir
 	}
@@ -211,19 +218,6 @@ func (n *node[T]) rsearch(key float64) int {
 	return int(n.count)
 }
 
-func (n *node[T]) bsearch(key float64) int {
-	low, high := 0, int(n.count)
-	for low < high {
-		h := int(uint(low+high) >> 1)
-		if !(key < n.rects[h].min[0]) {
-			low = h + 1
-		} else {
-			high = h
-		}
-	}
-	return low
-}
-
 func (tr *RTreeG[T]) nodeInsert(nr *rect, cn **node[T], ir *rect, data T,
 ) (grown bool) {
 	n := tr.cowLoad(cn)
@@ -292,7 +286,7 @@ func (tr *RTreeG[T]) nodeInsert(nr *rect, cn **node[T], ir *rect, data T,
 				n.swap(index+1, index)
 			}
 			index++
-			index = n.orderToRight(index)
+			_ = n.orderToRight(index)
 		} else {
 			n.rects[n.count] = right.rect()
 			children[n.count] = right
@@ -685,7 +679,7 @@ func (tr *RTreeG[T]) nodeDelete(nr *rect, cn **node[T], ir *rect, data T,
 				*nr = n.rect()
 			}
 			if orderBranches {
-				i = n.orderToRight(i)
+				_ = n.orderToRight(i)
 			}
 		}
 		return true, shrunk
@@ -698,11 +692,6 @@ func (r *rect) equals(b *rect) bool {
 		r.min[1] < b.min[1] || r.min[1] > b.min[1] ||
 		r.max[0] < b.max[0] || r.max[0] > b.max[0] ||
 		r.max[1] < b.max[1] || r.max[1] > b.max[1])
-}
-
-type reinsertItem[T any] struct {
-	rect rect
-	data T
 }
 
 func (n *node[T]) deepCount() int {
@@ -754,13 +743,13 @@ func (tr *RTreeG[T]) Bounds() (min, max [2]float64) {
 	return tr.rect.min, tr.rect.max
 }
 
-// Children is a utility function that returns all children for parent node.
+// children is a utility function that returns all children for parent node.
 // If parent node is nil then the root nodes should be returned. The min, max,
 // data, and items slices all must have the same lengths. And, each element
 // from all slices must be associated. Returns true for `items` when the the
 // item at the leaf level. The reuse buffers are empty length slices that can
 // optionally be used to avoid extra allocations.
-func (tr *RTreeG[T]) Children(parent interface{}, reuse []child.Child,
+func (tr *RTreeG[T]) children(parent interface{}, reuse []child.Child,
 ) (children []child.Child) {
 	children = reuse
 	if parent == nil {
@@ -789,6 +778,150 @@ func (tr *RTreeG[T]) Children(parent interface{}, reuse []child.Child,
 		}
 	}
 	return children
+}
+
+// Nearby performs a kNN-type operation on the index.
+// It's expected that the caller provides its own the `dist` function, which
+// is used to calculate a distance to rectangles and data.
+// The `iter` function will return all items from the smallest distance to the
+// largest distance.
+//
+// BoxDist is included with this package for simple box-distance
+// calculations. For example, say you want to return the closest items to
+// Point(10 20):
+//
+//	tr.Nearby(
+//		rtree.BoxDist([2]float64{10, 20}, [2]float64{10, 20}, nil),
+//		func(min, max [2]float64, data int, dist float64) bool {
+//			return true
+//		},
+//	)
+func (tr *RTreeG[T]) Nearby(
+	dist func(min, max [2]float64, data T, item bool) float64,
+	iter func(min, max [2]float64, data T, dist float64) bool,
+) {
+	if tr.root == nil {
+		return
+	}
+	q := tr.qpool.Get().(*queue[T])
+	defer func() {
+		*q = (*q)[:0]
+		tr.qpool.Put(q)
+	}()
+
+	q.push(qnode[T]{
+		dist: 0, //algo(tr.rect.min, tr.rect.max, tr.empty, false),
+		rect: tr.rect,
+		node: tr.root,
+	})
+	for {
+		qn, ok := q.pop()
+		if !ok {
+			return
+		}
+		if qn.node == nil {
+			if !iter(qn.rect.min, qn.rect.max, qn.data, qn.dist) {
+				return
+			}
+		} else {
+			rects := qn.node.rects[:qn.node.count]
+			if qn.node.leaf() {
+				items := qn.node.items()[:qn.node.count]
+				for i := 0; i < len(items); i++ {
+					q.push(qnode[T]{
+						dist: dist(rects[i].min, rects[i].max, items[i], true),
+						rect: rects[i],
+						data: items[i],
+					})
+				}
+			} else {
+				children := qn.node.children()[:qn.node.count]
+				for i := 0; i < len(children); i++ {
+					q.push(qnode[T]{
+						dist: dist(rects[i].min, rects[i].max, tr.empty, false),
+						rect: rects[i],
+						node: children[i],
+					})
+				}
+			}
+		}
+	}
+}
+
+type qnode[T any] struct {
+	dist float64  // distance to
+	rect rect     // item or node rect
+	data T        // item data (or empty for node)
+	node *node[T] // node (or nil for leaf data)
+}
+
+type queue[T any] []qnode[T]
+
+func (q *queue[T]) push(node qnode[T]) {
+	*q = append(*q, node)
+	nodes := *q
+	i := len(nodes) - 1
+	parent := (i - 1) / 2
+	for ; i != 0 && nodes[parent].dist > nodes[i].dist; parent = (i - 1) / 2 {
+		nodes[parent], nodes[i] = nodes[i], nodes[parent]
+		i = parent
+	}
+}
+
+func (q *queue[T]) pop() (qnode[T], bool) {
+	nodes := *q
+	if len(nodes) == 0 {
+		return qnode[T]{}, false
+	}
+	var n qnode[T]
+	n, nodes[0] = nodes[0], nodes[len(*q)-1]
+	nodes = nodes[:len(nodes)-1]
+	*q = nodes
+	i := 0
+	for {
+		smallest := i
+		left := i*2 + 1
+		right := i*2 + 2
+		if left < len(nodes) && nodes[left].dist <= nodes[smallest].dist {
+			smallest = left
+		}
+		if right < len(nodes) && nodes[right].dist <= nodes[smallest].dist {
+			smallest = right
+		}
+		if smallest == i {
+			break
+		}
+		nodes[smallest], nodes[i] = nodes[i], nodes[smallest]
+		i = smallest
+	}
+	return n, true
+}
+
+// BoxDist performs simple box-distance algorithm on rectangles.
+// This is the default algorithm for Nearby.
+func BoxDist[T any](targetMin, targetMax [2]float64,
+	itemDist func(min, max [2]float64, data T) float64,
+) (dist func(min, max [2]float64, data T, item bool) float64) {
+	targ := rect{targetMin, targetMax}
+	return func(min, max [2]float64, data T, item bool) (dist float64) {
+		if item && itemDist != nil {
+			return itemDist(min, max, data)
+		}
+		return targ.boxDist(&rect{min, max})
+	}
+}
+
+func (r *rect) boxDist(b *rect) float64 {
+	var dist float64
+	squared := fmax(r.min[0], b.min[0]) - fmin(r.max[0], b.max[0])
+	if squared > 0 {
+		dist += squared * squared
+	}
+	squared = fmax(r.min[1], b.min[1]) - fmin(r.max[1], b.max[1])
+	if squared > 0 {
+		dist += squared * squared
+	}
+	return dist
 }
 
 // Generic RTree

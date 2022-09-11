@@ -728,15 +728,15 @@ func (tr *RTreeG[T]) svg() string {
 		-190.0*svgScale, -100.0*svgScale,
 		380.0*svgScale, 190.0*svgScale)
 
-	out += fmt.Sprintf("<g transform=\"scale(1,-1)\">\n")
+	out += "<g transform=\"scale(1,-1)\">\n"
 
 	var outb []byte
 	if tr.root != nil {
 		outb = append(outb, tr.root.svg(tr.rect, 1)...)
 	}
 	out += string(outb)
-	out += fmt.Sprintf("</g>\n")
-	out += fmt.Sprintf("</svg>\n")
+	out += "</g>\n"
+	out += "</svg>\n"
 	return out
 }
 
