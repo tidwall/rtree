@@ -45,7 +45,7 @@ tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
 
 ```go
 // create a 2D RTree
-var tr rtree.Generic[string]
+var tr rtree.RTreeG[string]
 
 // insert a point
 tr.Insert([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
