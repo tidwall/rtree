@@ -78,3 +78,8 @@ func (tr *RTree) Nearby(
 func (tr *RTree) Copy() *RTree {
 	return &RTree{base: *tr.base.Copy()}
 }
+
+// Clear will delete all items.
+func (tr *RTree) Clear() {
+	tr.base.Clear()
+}

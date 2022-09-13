@@ -924,6 +924,13 @@ func (r *rect) boxDist(b *rect) float64 {
 	return dist
 }
 
+// Clear will delete all items.
+func (tr *RTreeG[T]) Clear() {
+	tr.count = 0
+	tr.rect = rect{}
+	tr.root = nil
+}
+
 // Generic RTree
 // Deprecated: use RTreeG
 type Generic[T any] struct {

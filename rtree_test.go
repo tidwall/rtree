@@ -180,6 +180,29 @@ func TestRTree(t *testing.T) {
 
 }
 
+func TestClear(t *testing.T) {
+	var tr RTree
+	for i := 0; i < 1_000; i++ {
+		rect := randRect('m')
+		tr.Insert(rect.min, rect.max, i)
+	}
+	if tr.Len() != 1_000 {
+		t.Fatalf("expected %d, got %d", 1_000, tr.Len())
+	}
+	tr.Clear()
+	if tr.Len() != 0 {
+		t.Fatalf("expected %d, got %d", 0, tr.Len())
+	}
+	for i := 0; i < 1_000; i++ {
+		rect := randRect('m')
+		tr.Insert(rect.min, rect.max, i)
+	}
+	if tr.Len() != 1_000 {
+		t.Fatalf("expected %d, got %d", 1_000, tr.Len())
+	}
+
+}
+
 // func TestRTreeLegacy(t *testing.T) {
 // 	numPointOrRects := 1_000_000
 // 	kind := byte('m')
