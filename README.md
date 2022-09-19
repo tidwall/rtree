@@ -64,6 +64,31 @@ tr.Search([2]float64{-112.1, 33.4}, [2]float64{-112.0, 33.5},
 tr.Delete([2]float64{-112.0078, 33.4373}, [2]float64{-112.0078, 33.4373}, "PHX")
 ```
 
+
+### Support for generic numeric types, like int, float32, etc.
+
+```go
+// create a 2D RTree
+var tr rtree.RTreeGN[float32, string]
+
+// insert a point
+tr.Insert([2]float32{-112.0078, 33.4373}, [2]float32{-112.0078, 33.4373}, "PHX")
+
+// insert a rect
+tr.Insert([2]float32{10, 10}, [2]float32{20, 20}, "rect")
+
+// search 
+tr.Search([2]float32{-112.1, 33.4}, [2]float32{-112.0, 33.5}, 
+ 	func(min, max [2]float32, data string) bool {
+		println(data) // prints "PHX"
+	},
+)
+
+// delete 
+tr.Delete([2]float32{-112.0078, 33.4373}, [2]float32{-112.0078, 33.4373}, "PHX")
+```
+
+
 ## Algorithms
 
 This implementation is a variant of the original paper:  

@@ -33,6 +33,7 @@ func init() {
 }
 
 func TestGeoIndex(t *testing.T) {
+	fmt.Printf("\n== interface rtree ==\n")
 	t.Run("BenchVarious", func(t *testing.T) {
 		geoindex.Tests.TestBenchVarious(t, &RTree{}, 1000000)
 	})
@@ -54,14 +55,14 @@ func TestGeoIndex(t *testing.T) {
 }
 
 // kind = 'r','p','m' for rect,point,mixed
-func randRect(kind byte) (r rect) {
+func randRect(kind byte) (r rect[float64]) {
 	r.min[0] = rand.Float64()*360 - 180
 	r.min[1] = rand.Float64()*180 - 90
 	r.max = r.min
 	return randRectOffset(r, kind)
 }
 
-func randRectOffset(r rect, kind byte) rect {
+func randRectOffset(r rect[float64], kind byte) rect[float64] {
 	rsize := 0.01 // size of rectangle in degrees
 	pr := r
 	for {
@@ -84,19 +85,50 @@ func randRectOffset(r rect, kind byte) rect {
 	}
 }
 
-func TestRTree(t *testing.T) {
+// kind = 'r','p','m' for rect,point,mixed
+func randRect32(kind byte) (r rect[float32]) {
+	r.min[0] = rand.Float32()*360 - 180
+	r.min[1] = rand.Float32()*180 - 90
+	r.max = r.min
+	return randRectOffset32(r, kind)
+}
+
+func randRectOffset32(r rect[float32], kind byte) rect[float32] {
+	rsize := 0.01 // size of rectangle in degrees
+	pr := r
+	for {
+		r.min[0] = float32(float64(pr.max[0]+pr.min[0])/2 + rand.Float64()*rsize - rsize/2)
+		r.min[1] = float32(float64(pr.max[1]+pr.min[1])/2 + rand.Float64()*rsize - rsize/2)
+		r.max = r.min
+		if kind == 'r' || (kind == 'm' && rand.Int()%2 == 0) {
+			// rect
+			r.max[0] = float32(float64(r.min[0]) + rand.Float64()*rsize)
+			r.max[1] = float32(float64(r.min[1]) + rand.Float64()*rsize)
+		} else {
+			// point
+			r.max = r.min
+		}
+		if r.min[0] < -180 || r.min[1] < -90 ||
+			r.max[0] > 180 || r.max[1] > 90 {
+			continue
+		}
+		return r
+	}
+}
+
+func TestRTreeBenchFloat64(t *testing.T) {
 	numPointOrRects := 1_000_000
 	kind := byte('m')
 	var tr RTreeG[int]
 
 	N := numPointOrRects
-	rects := make([]rect, N)
+	rects := make([]rect[float64], N)
 	for i := 0; i < N; i++ {
 		rects[i] = randRect(kind)
 	}
 
 	lotsa.Output = os.Stdout
-	fmt.Printf("== generic / int ==\n")
+	fmt.Printf("\n== generic [float64, int] ==\n")
 	fmt.Printf("insert:       ")
 	lotsa.Ops(N, 1, func(i, _ int) {
 		tr.Insert(rects[i].min, rects[i].max, i)
@@ -162,9 +194,105 @@ func TestRTree(t *testing.T) {
 	for i := 0; i < N; i++ {
 		tr.Insert(rects[i].min, rects[i].max, i)
 	}
-	rectsReplace := make([]rect, N)
+	rectsReplace := make([]rect[float64], N)
 	for i := 0; i < N; i++ {
 		rectsReplace[i] = randRectOffset(rects[i], kind)
+	}
+	fmt.Printf("replace: ")
+	lotsa.Ops(N, 1, func(i, _ int) {
+		tr.Replace(
+			rects[i].min, rects[i].max, i,
+			rectsReplace[i].min, rectsReplace[i].max, i,
+		)
+	})
+	if tr.Len() != N {
+		t.Fatalf("expected %d, got %d", N, tr.Len())
+	}
+	// }
+
+}
+
+func TestRTreeBenchFloat32(t *testing.T) {
+	numPointOrRects := 1_000_000
+	kind := byte('m')
+	var tr RTreeGN[float32, int]
+
+	N := numPointOrRects
+	rects := make([]rect[float32], N)
+	for i := 0; i < N; i++ {
+		rects[i] = randRect32(kind)
+	}
+
+	lotsa.Output = os.Stdout
+	fmt.Printf("\n== generic [float32, int] ==\n")
+	fmt.Printf("insert:       ")
+	lotsa.Ops(N, 1, func(i, _ int) {
+		tr.Insert(rects[i].min, rects[i].max, i)
+	})
+
+	fmt.Printf("search-item:  ")
+	var count int
+	lotsa.Ops(N, 1, func(i, _ int) {
+		tr.Search(rects[i].min, rects[i].max,
+			func(min, max [2]float32, value int) bool {
+				if value == i {
+					count++
+					return false
+				}
+				return true
+			},
+		)
+	})
+	if count != N {
+		t.Fatalf("expected %d, got %d", N, count)
+	}
+
+	fmt.Printf("search-1%%:    ")
+	lotsa.Ops(10_000, 1, func(i, _ int) {
+		const p = 0.01
+		min := [2]float32{rand.Float32()*360 - 180, rand.Float32()*180 - 90}
+		max := [2]float32{min[0] + 360*p, min[1] + 180*p}
+		tr.Search(min, max, func(min, max [2]float32, value int) bool {
+			return true
+		})
+	})
+
+	fmt.Printf("search-5%%:    ")
+	lotsa.Ops(10_000, 1, func(i, _ int) {
+		const p = 0.05
+		min := [2]float32{rand.Float32()*360 - 180, rand.Float32()*180 - 90}
+		max := [2]float32{min[0] + 360*p, min[1] + 180*p}
+		tr.Search(min, max, func(min, max [2]float32, value int) bool {
+			return true
+		})
+	})
+
+	fmt.Printf("search-10%%:   ")
+	lotsa.Ops(10_000, 1, func(i, _ int) {
+		const p = 0.10
+		min := [2]float32{rand.Float32()*360 - 180, rand.Float32()*180 - 90}
+		max := [2]float32{min[0] + 360*p, min[1] + 180*p}
+		tr.Search(min, max, func(min, max [2]float32, value int) bool {
+			return true
+		})
+	})
+
+	fmt.Printf("delete:       ")
+	lotsa.Ops(N, 1, func(i, _ int) {
+		tr.Delete(rects[i].min, rects[i].max, i)
+	})
+	if tr.Len() != 0 {
+		t.Fatalf("expected %d, got %d", 0, tr.Len())
+	}
+
+	// if false {
+	// resinert all items and then replace
+	for i := 0; i < N; i++ {
+		tr.Insert(rects[i].min, rects[i].max, i)
+	}
+	rectsReplace := make([]rect[float32], N)
+	for i := 0; i < N; i++ {
+		rectsReplace[i] = randRectOffset32(rects[i], kind)
 	}
 	fmt.Printf("replace: ")
 	lotsa.Ops(N, 1, func(i, _ int) {
@@ -203,107 +331,9 @@ func TestClear(t *testing.T) {
 
 }
 
-// func TestRTreeLegacy(t *testing.T) {
-// 	numPointOrRects := 1_000_000
-// 	kind := byte('m')
-// 	var tr rtree.RTreeG[int]
-
-// 	N := numPointOrRects
-// 	rects := make([]rect, N)
-// 	for i := 0; i < N; i++ {
-// 		rects[i] = randRect(kind)
-// 	}
-
-// 	lotsa.Output = os.Stdout
-// 	fmt.Printf("insert:       ")
-// 	lotsa.Ops(N, 1, func(i, _ int) {
-// 		tr.Insert(rects[i].min, rects[i].max, i)
-// 	})
-// 	fmt.Printf("search-item:  ")
-// 	var count int
-// 	lotsa.Ops(N, 1, func(i, _ int) {
-// 		tr.Search(rects[i].min, rects[i].max,
-// 			func(min, max [2]float64, value int) bool {
-// 				if value == i {
-// 					count++
-// 					return false
-// 				}
-// 				return true
-// 			},
-// 		)
-// 	})
-// 	if count != N {
-// 		t.Fatalf("expected %d, got %d", N, count)
-// 	}
-
-// 	fmt.Printf("search-1%%:    ")
-// 	lotsa.Ops(10_000, 1, func(i, _ int) {
-// 		const p = 0.01
-// 		min := [2]float64{rand.Float64()*360 - 180, rand.Float64()*180 - 90}
-// 		max := [2]float64{min[0] + 360*p, min[1] + 180*p}
-// 		tr.Search(min, max, func(min, max [2]float64, value int) bool {
-// 			return true
-// 		})
-// 	})
-
-// 	fmt.Printf("search-5%%:    ")
-// 	lotsa.Ops(10_000, 1, func(i, _ int) {
-// 		const p = 0.05
-// 		min := [2]float64{rand.Float64()*360 - 180, rand.Float64()*180 - 90}
-// 		max := [2]float64{min[0] + 360*p, min[1] + 180*p}
-// 		tr.Search(min, max, func(min, max [2]float64, value int) bool {
-// 			return true
-// 		})
-// 	})
-
-// 	fmt.Printf("search-10%%:   ")
-// 	lotsa.Ops(10_000, 1, func(i, _ int) {
-// 		const p = 0.10
-// 		min := [2]float64{rand.Float64()*360 - 180, rand.Float64()*180 - 90}
-// 		max := [2]float64{min[0] + 360*p, min[1] + 180*p}
-// 		tr.Search(min, max, func(min, max [2]float64, value int) bool {
-// 			return true
-// 		})
-// 	})
-
-// 	fmt.Printf("delete:       ")
-// 	lotsa.Ops(N, 1, func(i, _ int) {
-// 		tr.Delete(rects[i].min, rects[i].max, i)
-// 	})
-// 	if tr.Len() != 0 {
-// 		t.Fatalf("expected %d, got %d", 0, tr.Len())
-// 	}
-
-// 	// if false {
-// 	// resinert all items and then replace
-// 	for i := 0; i < N; i++ {
-// 		tr.Insert(rects[i].min, rects[i].max, i)
-// 	}
-// 	rectsReplace := make([]rect, N)
-// 	for i := 0; i < N; i++ {
-// 		rectsReplace[i] = randRectOffset(rects[i], kind)
-// 	}
-// 	fmt.Printf("replace: ")
-// 	lotsa.Ops(N, 1, func(i, _ int) {
-// 		tr.Replace(
-// 			rects[i].min, rects[i].max, i,
-// 			rectsReplace[i].min, rectsReplace[i].max, i,
-// 		)
-// 	})
-// 	if tr.Len() != N {
-// 		t.Fatalf("expected %d, got %d", N, tr.Len())
-// 	}
-// 	// }
-
-// }
-
 func TestRandomPointsSVG(t *testing.T) {
 	const SEED = 909
 	const N = 100_000
-	// const N = 1000
-	// const N = 2889 //- 1
-	//3000 //2000 //3_010 //30 - 1
-	// const N = 2000
 	{
 		rand.Seed(SEED)
 		var tr RTreeG[int]
@@ -312,19 +342,7 @@ func TestRandomPointsSVG(t *testing.T) {
 			tr.Insert(pt, pt, i)
 		}
 		os.WriteFile("rand1.svg", []byte(tr.svg()), 0666)
-		// if err := rSane(&tr); err != nil {
-		// 	panic(err)
-		// }
 	}
-	// {
-	// 	rand.Seed(SEED)
-	// 	var tr rtree.RTree
-	// 	for i := 0; i < N; i++ {
-	// 		pt := [2]float64{rand.Float64()*360 - 180, rand.Float64()*180 - 90}
-	// 		tr.Insert(pt, pt, i)
-	// 	}
-	// 	os.WriteFile("rand2.svg", []byte(geoindex.Wrap(&tr).SVG()), 0666)
-	// }
 }
 
 const predefPts = `
@@ -521,7 +539,7 @@ func TestSane(t *testing.T) {
 			points[i][0] = points[i-1][0] + rng.Float64() - 0.5
 			points[i][1] = points[i-1][1] + rng.Float64() - 0.5
 		}
-		rects := make(map[int]rect)
+		rects := make(map[int]rect[float64])
 		var tr RTreeG[int]
 		for i := 0; i < n-1; i += 2 {
 			minx := points[i+0][0]
@@ -534,7 +552,7 @@ func TestSane(t *testing.T) {
 			if miny > maxy {
 				miny, maxy = maxy, miny
 			}
-			r := rect{
+			r := rect[float64]{
 				[2]float64{minx, miny},
 				[2]float64{maxx, maxy},
 			}
@@ -546,7 +564,7 @@ func TestSane(t *testing.T) {
 		nrects := len(rects)
 		tr.Scan(func(min, max [2]float64, i int) bool {
 			ir := rects[i]
-			if !ir.equals(&rect{min, max}) {
+			if !ir.equals(&rect[float64]{min, max}) {
 				t.Fatalf("mismatch (seed %d)", seed)
 			}
 			delete(rects, i)
@@ -589,51 +607,51 @@ func TestSane(t *testing.T) {
 }
 
 func rSane[T comparable](tr *RTreeG[T]) error {
-	if tr.root == nil {
-		if tr.count != 0 {
+	if tr.base.root == nil {
+		if tr.base.count != 0 {
 			return errors.New("nil root, count not zero")
 		}
 	}
 
 	// determine the height
 	var height int
-	if tr.root != nil {
-		n := tr.root
+	if tr.base.root != nil {
+		n := tr.base.root
 		for !n.leaf() {
 			n = n.children()[0]
 			height++
 		}
 	}
 
-	if height > 0 && tr.root == nil {
+	if height > 0 && tr.base.root == nil {
 		return errors.New("not nil root")
 	}
-	if tr.count > 0 && tr.root == nil {
+	if tr.base.count > 0 && tr.base.root == nil {
 		return errors.New("invalid count")
 	}
-	if tr.count == 0 && tr.root != nil {
+	if tr.base.count == 0 && tr.base.root != nil {
 		return errors.New("invalid count")
 	}
 	// if len(tr.reinsert) > 0 {
 	// 	// 	return errors.New("items in reinsert")
 	// }
-	if tr.root == nil {
+	if tr.base.root == nil {
 		return nil
 	}
-	if err := rSaneRect(tr.rect); err != nil {
+	if err := rSaneRect(tr.base.rect); err != nil {
 		return err
 	}
-	return rSaneNode(tr, tr.rect, tr.root, height, true)
+	return rSaneNode(tr, tr.base.rect, tr.base.root, height, true)
 }
 
-func rSaneRect(r rect) error {
+func rSaneRect(r rect[float64]) error {
 	if r.min[0] > r.max[0] || r.min[1] > r.max[1] {
 		return errors.New("invalid rect")
 	}
 	return nil
 }
 
-func rSaneNode[T comparable](tr *RTreeG[T], r rect, n *node[T],
+func rSaneNode[T comparable](tr *RTreeG[T], r rect[float64], n *node[float64, T],
 	height int, isroot bool,
 ) error {
 	if int(n.count) > maxEntries {
@@ -653,9 +671,9 @@ func rSaneNode[T comparable](tr *RTreeG[T], r rect, n *node[T],
 	r2 := n.rect()
 	if !r.equals(&r2) {
 		if r.contains(&r2) {
-			return errors.New("invalid rect size: rect too small")
+			return errors.New("invalid rect[float64] size: rect[float64] too small")
 		} else {
-			return errors.New("invalid rect size: rect outside bounds")
+			return errors.New("invalid rect[float64] size: rect[float64] outside bounds")
 		}
 	}
 
@@ -710,7 +728,7 @@ func rSaneNode[T comparable](tr *RTreeG[T], r rect, n *node[T],
 	return nil
 }
 
-func (n *node[T]) svg(r rect, height int) []byte {
+func nodeSvg[T any](n *node[float64, T], r rect[float64], height int) []byte {
 	var out []byte
 	out = append(out, fmt.Sprintf(
 		"<rect x=\"%.0f\" y=\"%.0f\" width=\"%.0f\" height=\"%.0f\" "+
@@ -722,7 +740,7 @@ func (n *node[T]) svg(r rect, height int) []byte {
 		strokes[height%len(strokes)])...)
 	if !n.leaf() {
 		for i := 0; i < int(n.count); i++ {
-			out = append(out, n.children()[i].svg(n.rects[i], height+1)...)
+			out = append(out, nodeSvg(n.children()[i], n.rects[i], height+1)...)
 		}
 	} else {
 		for i := 0; i < int(n.count); i++ {
@@ -754,8 +772,8 @@ func (tr *RTreeG[T]) svg() string {
 	out += "<g transform=\"scale(1,-1)\">\n"
 
 	var outb []byte
-	if tr.root != nil {
-		outb = append(outb, tr.root.svg(tr.rect, 1)...)
+	if tr.base.root != nil {
+		outb = append(outb, nodeSvg(tr.base.root, tr.base.rect, 1)...)
 	}
 	out += string(outb)
 	out += "</g>\n"
