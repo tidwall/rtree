@@ -15,20 +15,20 @@ import (
 // SAFTEY: The unsafe package is used, but with care.
 // Using "unsafe" allows for one alloction per node and avoids having to use
 // an interface{} type for child nodes; that may either be:
-//   - *leafNode[T,N]
-//   - *branchNode[T,N]
+//   - *leafNode[N,T]
+//   - *branchNode[N,T]
 // This library makes it generally safe by guaranteeing that all references to
-// nodes are simply to `*node[T,N]`, which is just the header struct for the
+// nodes are simply to `*node[N,T]`, which is just the header struct for the
 // leaf or branch representation. The difference between a leaf and a branch
 // node is that a leaf has an array of item data of generic type T on tail of
 // the struct, while a branch has an array of child node pointers on the tail.
-// To access the child items `node[T,N].items()` is called; returning a slice,
+// To access the child items `node[N,T].items()` is called; returning a slice,
 // or nil if the node is a branch. To access the child nodes
-// `node[T,N].children()` is called; returning a slice, or nil if the node is a
-// leaf. The `items()` and `children()` methods check the `node[T,N].kind` to
+// `node[N,T].children()` is called; returning a slice, or nil if the node is a
+// leaf. The `items()` and `children()` methods check the `node[N,T].kind` to
 // determine which kind of node it is, which is an enum of `none`, `leaf`, or
-// `branch`. The only valid way to create a `*node[T,N]` is
-// `RTreeGN[T,N].newNode(leaf bool)` which take a bool that indicates the new
+// `branch`. The only valid way to create a `*node[N,T]` is
+// `RTreeGN[N,T].newNode(leaf bool)` which take a bool that indicates the new
 // node kind is a `leaf` or `branch`.
 
 const maxEntries = 64
