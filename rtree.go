@@ -819,14 +819,15 @@ func (n *node[N, T]) maxist(dim int) (min, max [2]N, data T) {
 // Point(10 20):
 //
 //	tr.Nearby(
-//		rtree.BoxDist([2]N{10, 20}, [2]N{10, 20}, nil),
-//		func(min, max [2]N, data int, dist N) bool {
+//		rtree.BoxDist([2]float64{10, 20}, [2]float64{10, 20}, nil),
+//		func(min, max [2]float64, data int, dist float64) bool {
 //			return true
 //		},
 //	)
+
 func (tr *RTreeGN[N, T]) Nearby(
-	dist func(min, max [2]N, data T, item bool) N,
-	iter func(min, max [2]N, data T, dist N) bool,
+	dist func(min, max [2]N, data T, item bool) float64,
+	iter func(min, max [2]N, data T, dist float64) bool,
 ) {
 	if tr.root == nil {
 		return
@@ -877,7 +878,7 @@ func (tr *RTreeGN[N, T]) Nearby(
 }
 
 type qnode[N numeric, T any] struct {
-	dist N           // distance to
+	dist float64     // distance to
 	rect rect[N]     // item or node rect
 	data T           // item data (or empty for node)
 	node *node[N, T] // node (or nil for leaf data)
