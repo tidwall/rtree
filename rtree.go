@@ -754,42 +754,59 @@ func (tr *RTreeGN[N, T]) Bounds() (min, max [2]N) {
 	return tr.rect.min, tr.rect.max
 }
 
-// // children is a utility function that returns all children for parent node.
-// // If parent node is nil then the root nodes should be returned. The min, max,
-// // data, and items slices all must have the same lengths. And, each element
-// // from all slices must be associated. Returns true for `items` when the the
-// // item at the leaf level. The reuse buffers are empty length slices that can
-// // optionally be used to avoid extra allocations.
-// func (tr *RTreeGN[N,T]) children(parent interface{}, reuse []child.Child,
-// ) (children []child.Child) {
-// 	children = reuse
-// 	if parent == nil {
-// 		if tr.Len() > 0 {
-// 			// fill with the root
-// 			children = append(children, child.Child{
-// 				Min:  tr.rect.min,
-// 				Max:  tr.rect.max,
-// 				Data: tr.root,
-// 				Item: false,
-// 			})
-// 		}
-// 	} else {
-// 		// fill with child items
-// 		n := parent.(*node[N,T])
-// 		for i := 0; i < int(n.count); i++ {
-// 			c := child.Child{
-// 				Min: n.rects[i].min, Max: n.rects[i].max, Item: n.leaf(),
-// 			}
-// 			if c.Item {
-// 				c.Data = n.items()[i]
-// 			} else {
-// 				c.Data = n.children()[i]
-// 			}
-// 			children = append(children, c)
-// 		}
-// 	}
-// 	return children
-// }
+func (tr *RTreeGN[N, T]) LeftMost() (min, max [2]N, data T) {
+	if tr.root == nil {
+		return
+	}
+	return tr.root.minist(0)
+}
+func (tr *RTreeGN[N, T]) BottomMost() (min, max [2]N, data T) {
+	if tr.root == nil {
+		return
+	}
+	return tr.root.minist(1)
+}
+func (tr *RTreeGN[N, T]) RightMost() (min, max [2]N, data T) {
+	if tr.root == nil {
+		return
+	}
+	return tr.root.maxist(0)
+}
+
+func (tr *RTreeGN[N, T]) TopMost() (min, max [2]N, data T) {
+	if tr.root == nil {
+		return
+	}
+	return tr.root.maxist(1)
+}
+
+func (n *node[N, T]) minist(dim int) (min, max [2]N, data T) {
+	var j int
+	var m N
+	for i, r := range n.rects[:n.count] {
+		if i == 0 || r.min[dim] < m {
+			j, m = i, r.min[dim]
+		}
+	}
+	if n.leaf() {
+		return n.rects[j].min, n.rects[j].max, n.items()[j]
+	}
+	return n.children()[j].minist(dim)
+}
+
+func (n *node[N, T]) maxist(dim int) (min, max [2]N, data T) {
+	var j int
+	var m N
+	for i, r := range n.rects[:n.count] {
+		if i == 0 || r.max[dim] > m {
+			j, m = i, r.max[dim]
+		}
+	}
+	if n.leaf() {
+		return n.rects[j].min, n.rects[j].max, n.items()[j]
+	}
+	return n.children()[j].maxist(dim)
+}
 
 // Nearby performs a kNN-type operation on the index.
 // It's expected that the caller provides its own the `dist` function, which
@@ -941,6 +958,10 @@ func (tr *RTreeGN[N, T]) Clear() {
 	tr.rect = rect[N]{}
 	tr.root = nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Inherited wrapped types
+////////////////////////////////////////////////////////////////////////////////
 
 type RTreeG[T any] struct {
 	base RTreeGN[float64, T]
