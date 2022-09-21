@@ -824,7 +824,6 @@ func (n *node[N, T]) maxist(dim int) (min, max [2]N, data T) {
 //			return true
 //		},
 //	)
-
 func (tr *RTreeGN[N, T]) Nearby(
 	dist func(min, max [2]N, data T, item bool) float64,
 	iter func(min, max [2]N, data T, dist float64) bool,
@@ -1152,7 +1151,22 @@ func (tr *RTree) Children(parent interface{}, reuse []child.Child) (children []c
 	return tr.base.children(parent, reuse)
 }
 
-// Bounds returns the minimum bounding box
+// Nearby performs a kNN-type operation on the index.
+// It's expected that the caller provides its own the `dist` function, which
+// is used to calculate a distance to rectangles and data.
+// The `iter` function will return all items from the smallest distance to the
+// largest distance.
+//
+// BoxDist is included with this package for simple box-distance
+// calculations. For example, say you want to return the closest items to
+// Point(10 20):
+//
+//	tr.Nearby(
+//		rtree.BoxDist([2]float64{10, 20}, [2]float64{10, 20}, nil),
+//		func(min, max [2]float64, data int, dist float64) bool {
+//			return true
+//		},
+//	)
 func (tr *RTree) Nearby(
 	algo func(min, max [2]float64, data interface{}, item bool) (dist float64),
 	iter func(min, max [2]float64, data interface{}, dist float64) bool,
