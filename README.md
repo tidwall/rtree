@@ -92,7 +92,7 @@ tr.Delete([2]float32{-112.0078, 33.4373}, [2]float32{-112.0078, 33.4373}, "PHX")
 ## Algorithms
 
 This implementation is a variant of the original paper:  
-[R-TREES. A DYNAMIC INDEX STRUCTURE FOR SPATIAL SEARCHING](http://www-db.deis.unibo.it/courses/SI-LS/papers/Gut84.pdf)
+[R-TREES. A DYNAMIC INDEX STRUCTURE FOR SPATIAL SEARCHING](https://www.cs.princeton.edu/courses/archive/fall08/cos597B/papers/rtrees.pdf)
 
 ### Inserting
 
