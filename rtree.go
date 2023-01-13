@@ -35,7 +35,6 @@ const maxEntries = 64
 const minEntries = maxEntries * 10 / 100
 const orderBranches = true
 const orderLeaves = true
-const quickChooser = false
 
 // copy-on-write atomic incrementer
 var cow uint64
@@ -252,15 +251,10 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], cn **node[N, T], ir *rect[N],
 	// take a quick look for any nodes that contain the rect
 	for i := 0; i < len(rects); i++ {
 		if rects[i].contains(ir) {
-			if quickChooser {
+			area := rects[i].area()
+			if index == -1 || area < narea {
 				index = i
-				break
-			} else {
-				area := rects[i].area()
-				if index == -1 || area < narea {
-					index = i
-					narea = area
-				}
+				narea = area
 			}
 		}
 	}
@@ -408,8 +402,10 @@ func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N], left *node[N, T
 	}
 
 	if (orderBranches && !right.leaf()) || (orderLeaves && right.leaf()) {
-		right.sort()
-		// It's not uncommon that the left node is already ordered
+		// It's not uncommon that the nodes to be already ordered.
+		if !right.issorted() {
+			right.sort()
+		}
 		if !left.issorted() {
 			left.sort()
 		}
@@ -838,7 +834,7 @@ func (tr *RTreeGN[N, T]) Nearby(
 	}()
 
 	q.push(qnode[N, T]{
-		dist: 0, //algo(tr.rect.min, tr.rect.max, tr.empty, false),
+		dist: 0,
 		rect: tr.rect,
 		node: tr.root,
 	})
