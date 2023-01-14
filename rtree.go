@@ -37,7 +37,7 @@ const orderBranches = true
 const orderLeaves = true
 
 // copy-on-write atomic incrementer
-var cow uint64
+var gcow uint64
 
 type numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
@@ -46,7 +46,7 @@ type numeric interface {
 }
 
 type RTreeGN[N numeric, T any] struct {
-	cow   uint64
+	icow  uint64
 	count int
 	rect  rect[N]
 	root  *node[N, T]
@@ -83,7 +83,7 @@ const (
 )
 
 type node[N numeric, T any] struct {
-	cow   uint64
+	icow  uint64
 	kind  kind
 	count int16
 	rects [maxEntries]rect[N]
@@ -108,7 +108,6 @@ func (n *node[N, T]) children() []*node[N, T] {
 		// not a branch
 		return nil
 	}
-
 	return (*branchNode[N, T])(unsafe.Pointer(n)).children[:]
 }
 
@@ -122,10 +121,10 @@ func (n *node[N, T]) items() []T {
 
 func (tr *RTreeGN[N, T]) newNode(isleaf bool) *node[N, T] {
 	if isleaf {
-		n := &leafNode[N, T]{node: node[N, T]{cow: tr.cow, kind: leaf}}
+		n := &leafNode[N, T]{node: node[N, T]{icow: tr.icow, kind: leaf}}
 		return (*node[N, T])(unsafe.Pointer(n))
 	} else {
-		n := &branchNode[N, T]{node: node[N, T]{cow: tr.cow, kind: branch}}
+		n := &branchNode[N, T]{node: node[N, T]{icow: tr.icow, kind: branch}}
 		return (*node[N, T])(unsafe.Pointer(n))
 	}
 }
@@ -150,7 +149,8 @@ func (tr *RTreeGN[N, T]) Insert(min, max [2]N, data T) {
 		tr.root = tr.newNode(true)
 		tr.rect = ir
 	}
-	grown := tr.nodeInsert(&tr.rect, &tr.root, &ir, data)
+	tr.cow(&tr.root)
+	grown := tr.nodeInsert(&tr.rect, tr.root, &ir, data)
 	split := tr.root.count == maxEntries
 	if grown {
 		tr.rect.expand(&ir)
@@ -207,12 +207,12 @@ func (tr *RTreeGN[N, T]) copy(n *node[N, T]) *node[N, T] {
 	return n2
 }
 
-// cowLoad loads the provided node and, if needed, performs a copy-on-write.
-func (tr *RTreeGN[N, T]) cowLoad(cn **node[N, T]) *node[N, T] {
-	if (*cn).cow != tr.cow {
-		*cn = tr.copy(*cn)
+// cow ensures the provided node is not being shared with other R-trees.
+// Performs a copy-on-write, if needed.
+func (tr *RTreeGN[N, T]) cow(n **node[N, T]) {
+	if (*n).icow != tr.icow {
+		*n = tr.copy(*n)
 	}
-	return *cn
 }
 
 func (n *node[N, T]) rsearch(key N) int {
@@ -225,10 +225,9 @@ func (n *node[N, T]) rsearch(key N) int {
 	return int(n.count)
 }
 
-func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], cn **node[N, T], ir *rect[N],
+func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 	data T,
 ) (grown bool) {
-	n := tr.cowLoad(cn)
 	if n.leaf() {
 		items := n.items()
 		index := int(n.count)
@@ -263,7 +262,8 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], cn **node[N, T], ir *rect[N],
 	}
 
 	children := n.children()
-	grown = tr.nodeInsert(&n.rects[index], &children[index], ir, data)
+	tr.cow(&children[index])
+	grown = tr.nodeInsert(&n.rects[index], children[index], ir, data)
 	split := children[index].count == maxEntries
 	if grown {
 		// The child rectangle must expand to accomadate the new item.
@@ -505,8 +505,8 @@ func (n *node[N, T]) scan(iter func(min, max [2]N, data T) bool) bool {
 func (tr *RTreeGN[N, T]) Copy() *RTreeGN[N, T] {
 	tr2 := new(RTreeGN[N, T])
 	*tr2 = *tr
-	tr.cow = atomic.AddUint64(&cow, 1)
-	tr2.cow = atomic.AddUint64(&cow, 1)
+	tr.icow = atomic.AddUint64(&gcow, 1)
+	tr2.icow = atomic.AddUint64(&gcow, 1)
 	return tr2
 }
 
@@ -596,7 +596,8 @@ func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T) bool {
 		return false
 	}
 	var reinsert []*node[N, T]
-	removed, _ := tr.nodeDelete(&tr.rect, &tr.root, &ir, data, &reinsert)
+	tr.cow(&tr.root)
+	removed, _ := tr.nodeDelete(&tr.rect, tr.root, &ir, data, &reinsert)
 	if !removed {
 		return false
 	}
@@ -627,10 +628,9 @@ func compare[T any](a, b T) bool {
 	return (interface{})(a) == (interface{})(b)
 }
 
-func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], cn **node[N, T], ir *rect[N], data T,
+func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N], data T,
 	reinsert *[]*node[N, T],
 ) (removed, shrunk bool) {
-	n := tr.cowLoad(cn)
 	rects := n.rects[:n.count]
 	if n.leaf() {
 		items := n.items()
@@ -661,7 +661,8 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], cn **node[N, T], ir *rect[N], d
 			continue
 		}
 		crect := rects[i]
-		removed, shrunk = tr.nodeDelete(&rects[i], &children[i], ir, data,
+		tr.cow(&children[i])
+		removed, shrunk = tr.nodeDelete(&rects[i], children[i], ir, data,
 			reinsert)
 		if !removed {
 			continue
