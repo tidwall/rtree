@@ -150,11 +150,7 @@ func (tr *RTreeGN[N, T]) Insert(min, max [2]N, data T) {
 		tr.rect = ir
 	}
 	tr.cow(&tr.root)
-	grown := tr.nodeInsert(&tr.rect, tr.root, &ir, data)
-	split := tr.root.count == maxEntries
-	if grown {
-		tr.rect.expand(&ir)
-	}
+	split, grown := tr.nodeInsert(&tr.rect, tr.root, &ir, data)
 	if split {
 		left := tr.root
 		right := tr.splitNode(tr.rect, left)
@@ -164,9 +160,17 @@ func (tr *RTreeGN[N, T]) Insert(min, max [2]N, data T) {
 		tr.root.children()[0] = left
 		tr.root.children()[1] = right
 		tr.root.count = 2
+		tr.Insert(min, max, data)
+		if orderBranches {
+			tr.root.sort()
+		}
+		return
 	}
-	if orderBranches && !tr.root.leaf() && (grown || split) {
-		tr.root.sort()
+	if grown {
+		tr.rect.expand(&ir)
+		if orderBranches && !tr.root.leaf() {
+			tr.root.sort()
+		}
 	}
 	tr.count++
 }
@@ -227,8 +231,11 @@ func (n *node[N, T]) rsearch(key N) int {
 
 func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 	data T,
-) (grown bool) {
+) (split, grown bool) {
 	if n.leaf() {
+		if n.count == maxEntries {
+			return true, false
+		}
 		items := n.items()
 		index := int(n.count)
 		if orderLeaves {
@@ -240,7 +247,7 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 		items[index] = data
 		n.count++
 		grown = !nr.contains(ir)
-		return grown
+		return false, grown
 	}
 
 	// choose a subtree
@@ -263,17 +270,12 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 
 	children := n.children()
 	tr.cow(&children[index])
-	grown = tr.nodeInsert(&n.rects[index], children[index], ir, data)
-	split := children[index].count == maxEntries
-	if grown {
-		// The child rectangle must expand to accomadate the new item.
-		n.rects[index].expand(ir)
-		if orderBranches {
-			index = n.orderToLeft(index)
-		}
-		grown = !nr.contains(ir)
-	}
+	split, grown = tr.nodeInsert(&n.rects[index], children[index], ir, data)
 	if split {
+		if n.count == maxEntries {
+			return true, false
+		}
+		// split the child node
 		left := children[index]
 		right := tr.splitNode(n.rects[index], left)
 		n.rects[index] = left.rect()
@@ -295,9 +297,17 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 			children[n.count] = right
 			n.count++
 		}
-
+		return tr.nodeInsert(nr, n, ir, data)
 	}
-	return grown
+	if grown {
+		// The child rectangle must expand to accomadate the new item.
+		n.rects[index].expand(ir)
+		if orderBranches {
+			n.orderToLeft(index)
+		}
+		grown = !nr.contains(ir)
+	}
+	return false, grown
 }
 
 func (r *rect[N]) area() N {

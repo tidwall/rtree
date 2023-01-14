@@ -128,6 +128,8 @@ func TestRTreeBenchFloat64(t *testing.T) {
 	}
 
 	lotsa.Output = os.Stdout
+	lotsa.MemUsage = true
+
 	fmt.Printf("\n== generic [float64, int] ==\n")
 	fmt.Printf("insert:       ")
 	lotsa.Ops(N, 1, func(i, _ int) {
@@ -224,6 +226,7 @@ func TestRTreeBenchFloat32(t *testing.T) {
 	}
 
 	lotsa.Output = os.Stdout
+	lotsa.MemUsage = true
 	fmt.Printf("\n== generic [float32, int] ==\n")
 	fmt.Printf("insert:       ")
 	lotsa.Ops(N, 1, func(i, _ int) {
