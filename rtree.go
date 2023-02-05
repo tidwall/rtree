@@ -32,7 +32,6 @@ import (
 // node kind is a `leaf` or `branch`.
 
 const maxEntries = 64
-const minEntries = maxEntries * 10 / 100
 const orderBranches = true
 const orderLeaves = true
 
@@ -396,17 +395,17 @@ func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N], left *node[N, T
 		}
 	}
 	// Make sure that both left and right nodes have at least
-	// minEntries by moving items into underflowed nodes.
-	if left.count < minEntries {
+	// two by moving items into underflowed nodes.
+	if left.count < 2 {
 		// reverse sort by min axis
 		right.sortByAxis(axis, true, false)
-		for left.count < minEntries {
+		for left.count < 2 {
 			tr.moveRectAtIndexInto(right, int(right.count)-1, left)
 		}
-	} else if right.count < minEntries {
+	} else if right.count < 2 {
 		// reverse sort by max axis
 		left.sortByAxis(axis, true, true)
-		for right.count < minEntries {
+		for right.count < 2 {
 			tr.moveRectAtIndexInto(left, int(left.count)-1, right)
 		}
 	}
@@ -677,7 +676,7 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N], dat
 		if !removed {
 			continue
 		}
-		if children[i].count < minEntries {
+		if children[i].count == 0 {
 			*reinsert = append(*reinsert, children[i])
 			if orderBranches {
 				copy(n.rects[i:n.count], n.rects[i+1:n.count])

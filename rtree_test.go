@@ -200,7 +200,7 @@ func TestRTreeBenchFloat64(t *testing.T) {
 	for i := 0; i < N; i++ {
 		rectsReplace[i] = randRectOffset(rects[i], kind)
 	}
-	fmt.Printf("replace: ")
+	fmt.Printf("replace:      ")
 	lotsa.Ops(N, 1, func(i, _ int) {
 		tr.Replace(
 			rects[i].min, rects[i].max, i,
@@ -297,7 +297,7 @@ func TestRTreeBenchFloat32(t *testing.T) {
 	for i := 0; i < N; i++ {
 		rectsReplace[i] = randRectOffset32(rects[i], kind)
 	}
-	fmt.Printf("replace: ")
+	fmt.Printf("replace:      ")
 	lotsa.Ops(N, 1, func(i, _ int) {
 		tr.Replace(
 			rects[i].min, rects[i].max, i,
@@ -660,10 +660,6 @@ func rSaneNode[T comparable](tr *RTreeG[T], r rect[float64], n *node[float64, T]
 	if int(n.count) > maxEntries {
 		return errors.New("invalid count: max entries")
 	}
-	if int(n.count) < minEntries && !isroot {
-		return errors.New("invalid count: min entries")
-	}
-
 	if n.leaf() && height != 0 {
 		return errors.New("leaf not at zero height")
 	}
