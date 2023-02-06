@@ -96,17 +96,13 @@ This implementation is a variant of the original paper:
 
 ### Inserting
 
-Similar to the original algorithm. From the root to the leaf, the rects which
-will incur the least enlargment are chosen. Ties go to rects with the smallest
-area. 
+Similar to the original paper. From the root to the leaf, the rects which will incur the least enlargment are chosen. Ties go to rects with the smallest area. 
 
-Added to this implementation: when a rect does not incur any enlargement at
-all, it's chosen immediately and without further checks on other rects in the 
-same node. This make point insertion faster.
+Added to this implementation: when a rect does not incur any enlargement at all, it's chosen immediately and without further checks on other rects in the same node. Also added is all child rectangles in every node are ordered by their minimum x value. This can dramatically speed up searching for intersecting rectangles on most modern hardware.
 
 ### Deleting
 
-Same as the original algorithm. A target rect is deleted directly. When the number of children in a rect falls below it's minumum entries, it is removed from the tree and it's items are re-inserted.
+A target rect is searched for from root to the leaf, and if found it's deleted. When there are no more child rects in a node, that node is immedately removed from the tree.
 
 ### Searching
 
@@ -114,9 +110,7 @@ Same as the original algorithm.
 
 ### Splitting
 
-This is a custom algorithm.
-It attempts to minimize intensive operations such as pre-sorting the children and comparing overlaps & area sizes.
-The desire is to do simple single axis distance calculations each child only once, with a target 50/50 chance that the child might be moved in-memory.
+This is a custom algorithm. It attempts to minimize intensive operations such as pre-sorting the children and comparing overlaps & area sizes. The desire is to do simple single axis distance calculations each child only once, with a target 50/50 chance that the child might be moved in-memory.
 
 When a rect has reached it's max number of entries it's largest axis is calculated and the rect is split into two smaller rects, named `left` and `right`.
 Each child rects is then evaluated to determine which smaller rect it should be placed into.
