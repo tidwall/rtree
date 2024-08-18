@@ -831,8 +831,8 @@ func (n *node[N, T]) maxist(dim int) (min, max [2]N, data T) {
 //		},
 //	)
 func (tr *RTreeGN[N, T]) Nearby(
-	dist func(min, max [2]N, data T, item bool) float64,
-	iter func(min, max [2]N, data T, dist float64) bool,
+	dist func(min, max [2]N, data T, item bool) N,
+	iter func(min, max [2]N, data T, dist N) bool,
 ) {
 	if tr.root == nil {
 		return
@@ -883,7 +883,7 @@ func (tr *RTreeGN[N, T]) Nearby(
 }
 
 type qnode[N numeric, T any] struct {
-	dist float64     // distance to
+	dist N           // distance to
 	rect rect[N]     // item or node rect
 	data T           // item data (or empty for node)
 	node *node[N, T] // node (or nil for leaf data)

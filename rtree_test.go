@@ -917,5 +917,43 @@ func TestCopyOnWrite(t *testing.T) {
 	if err := rSane(tr); err != nil {
 		panic(err)
 	}
+}
+
+func TestNearby(t *testing.T) {
+	t.Run("G", func(t *testing.T) {
+		var output []int
+		var tr RTreeG[int]
+		tr.Insert([2]float64{100, 100}, [2]float64{100, 100}, 1)
+		tr.Insert([2]float64{200, 200}, [2]float64{200, 200}, 2)
+		tr.Nearby(
+			BoxDist[float64, int]([2]float64{10, 10}, [2]float64{10, 10}, nil),
+			func(min, max [2]float64, data int, dist float64) bool {
+				output = append(output, data, int(dist))
+				return true
+			},
+		)
+		exp := "[1 16200 2 72200]"
+		if fmt.Sprintf("%d", output) != exp {
+			t.Fatalf("expected %s, got %d", exp, output)
+		}
+	})
+
+	t.Run("GN", func(t *testing.T) {
+		var output []int
+		var tr RTreeGN[int, int]
+		tr.Insert([2]int{100, 100}, [2]int{100, 100}, 1)
+		tr.Insert([2]int{200, 200}, [2]int{200, 200}, 2)
+		tr.Nearby(
+			BoxDist[int, int]([2]int{10, 10}, [2]int{10, 10}, nil),
+			func(min, max [2]int, data int, dist int) bool {
+				output = append(output, data, dist)
+				return true
+			},
+		)
+		exp := "[1 16200 2 72200]"
+		if fmt.Sprintf("%d", output) != exp {
+			t.Fatalf("expected %s, got %d", exp, output)
+		}
+	})
 
 }
