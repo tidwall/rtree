@@ -12,7 +12,7 @@ import (
 	"github.com/tidwall/geoindex/child"
 )
 
-// SAFTEY: The unsafe package is used, but with care.
+// SAFETY: The unsafe package is used, but with care.
 // Using "unsafe" allows for one alloction per node and avoids having to use
 // an interface{} type for child nodes; that may either be:
 //   - *leafNode[N,T]
