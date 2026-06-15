@@ -14,7 +14,7 @@ import (
 
 // SAFETY: The unsafe package is used, but with care.
 // Using "unsafe" allows for one alloction per node and avoids having to use
-// an interface{} type for child nodes; that may either be:
+// an any type for child nodes; that may either be:
 //   - *leafNode[N,T]
 //   - *branchNode[N,T]
 // This library makes it generally safe by guaranteeing that all references to
@@ -634,7 +634,7 @@ func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T) bool {
 }
 
 func compare[T any](a, b T) bool {
-	return (interface{})(a) == (interface{})(b)
+	return (any)(a) == (any)(b)
 }
 
 func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N], data T,
@@ -1030,7 +1030,7 @@ func (tr *RTreeG[T]) Bounds() (min, max [2]float64) {
 // from all slices must be associated. Returns true for `items` when the the
 // item at the leaf level. The reuse buffers are empty length slices that can
 // optionally be used to avoid extra allocations.
-func (tr *RTreeG[T]) children(parent interface{}, reuse []child.Child,
+func (tr *RTreeG[T]) children(parent any, reuse []child.Child,
 ) (children []child.Child) {
 	children = reuse
 	if parent == nil {
@@ -1104,12 +1104,12 @@ type RTree struct {
 }
 
 // Insert an item into the structure
-func (tr *RTree) Insert(min, max [2]float64, data interface{}) {
+func (tr *RTree) Insert(min, max [2]float64, data any) {
 	tr.base.Insert(min, max, data)
 }
 
 // Delete an item from the structure
-func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
+func (tr *RTree) Delete(min, max [2]float64, data any) {
 	tr.base.Delete(min, max, data)
 }
 
@@ -1117,8 +1117,8 @@ func (tr *RTree) Delete(min, max [2]float64, data interface{}) {
 // followed by an Insert. But for some structures it may be possible to
 // optimize the operation to avoid multiple passes
 func (tr *RTree) Replace(
-	oldMin, oldMax [2]float64, oldData interface{},
-	newMin, newMax [2]float64, newData interface{},
+	oldMin, oldMax [2]float64, oldData any,
+	newMin, newMax [2]float64, newData any,
 ) {
 	tr.base.Replace(
 		oldMin, oldMax, oldData,
@@ -1129,13 +1129,13 @@ func (tr *RTree) Replace(
 // Search the structure for items that intersects the rect param
 func (tr *RTree) Search(
 	min, max [2]float64,
-	iter func(min, max [2]float64, data interface{}) bool,
+	iter func(min, max [2]float64, data any) bool,
 ) {
 	tr.base.Search(min, max, iter)
 }
 
 // Scan iterates through all data in tree in no specified order.
-func (tr *RTree) Scan(iter func(min, max [2]float64, data interface{}) bool) {
+func (tr *RTree) Scan(iter func(min, max [2]float64, data any) bool) {
 	tr.base.Scan(iter)
 }
 
@@ -1153,7 +1153,7 @@ func (tr *RTree) Bounds() (min, max [2]float64) {
 // then the root nodes should be returned.
 // The reuse buffer is an empty length slice that can optionally be used
 // to avoid extra allocations.
-func (tr *RTree) Children(parent interface{}, reuse []child.Child) (children []child.Child) {
+func (tr *RTree) Children(parent any, reuse []child.Child) (children []child.Child) {
 	return tr.base.children(parent, reuse)
 }
 
@@ -1174,8 +1174,8 @@ func (tr *RTree) Children(parent interface{}, reuse []child.Child) (children []c
 //		},
 //	)
 func (tr *RTree) Nearby(
-	algo func(min, max [2]float64, data interface{}, item bool) (dist float64),
-	iter func(min, max [2]float64, data interface{}, dist float64) bool,
+	algo func(min, max [2]float64, data any, item bool) (dist float64),
+	iter func(min, max [2]float64, data any, dist float64) bool,
 ) {
 	tr.base.Nearby(algo, iter)
 }

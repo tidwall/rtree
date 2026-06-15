@@ -32,7 +32,7 @@ tr.Insert([2]float64{10, 10}, [2]float64{20, 20}, "rect")
 
 // search 
 tr.Search([2]float64{-112.1, 33.4}, [2]float64{-112.0, 33.5}, 
- 	func(min, max [2]float64, data interface{}) bool {
+ 	func(min, max [2]float64, data any) bool {
 		println(data.(string)) // prints "PHX"
 	},
 )
