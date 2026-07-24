@@ -14,7 +14,7 @@ import (
 
 // SAFETY: The unsafe package is used, but with care.
 // Using "unsafe" allows for one alloction per node and avoids having to use
-// an any type for child nodes; that may either be:
+// an 'any' type for child nodes; that may either be:
 //   - *leafNode[N,T]
 //   - *branchNode[N,T]
 // This library makes it generally safe by guaranteeing that all references to
@@ -198,7 +198,8 @@ func (n *node[N, T]) orderToLeft(idx int) int {
 // This operation should not be inlined because it's expensive and rarely
 // called outside of heavy copy-on-write situations. Marking it "noinline"
 // allows for the parent cowLoad to be inlined.
-// go:noinline
+//
+//go:noinline
 func (tr *RTreeGN[N, T]) copy(n *node[N, T]) *node[N, T] {
 	n2 := tr.newNode(n.leaf())
 	*n2 = *n
@@ -250,17 +251,12 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 	}
 
 	// choose a subtree
-	rects := n.rects[:n.count]
-	index := -1
-	var narea N
 	// take a quick look for any nodes that contain the rect
-	for i := 0; i < len(rects); i++ {
-		if rects[i].contains(ir) {
-			area := rects[i].area()
-			if index == -1 || area < narea {
-				index = i
-				narea = area
-			}
+	index := -1
+	for i := 0; i < int(n.count); i++ {
+		if n.rects[i].contains(ir) {
+			index = i
+			break
 		}
 	}
 	if index == -1 {
@@ -315,28 +311,18 @@ func (r *rect[N]) area() N {
 
 // contains return struct when b is fully contained inside of n
 func (r *rect[N]) contains(b *rect[N]) bool {
-	if b.min[0] < r.min[0] || b.max[0] > r.max[0] {
-		return false
-	}
-	if b.min[1] < r.min[1] || b.max[1] > r.max[1] {
-		return false
-	}
-	return true
+	return !(b.min[0] < r.min[0] || b.max[0] > r.max[0] ||
+		b.min[1] < r.min[1] || b.max[1] > r.max[1])
 }
 
 // intersects returns true if both rects intersect each other.
 func (r *rect[N]) intersects(b *rect[N]) bool {
-	if b.min[0] > r.max[0] || b.max[0] < r.min[0] {
-		return false
-	}
-	if b.min[1] > r.max[1] || b.max[1] < r.min[1] {
-		return false
-	}
-	return true
+	return !(b.min[0] > r.max[0] || b.max[0] < r.min[0] ||
+		b.min[1] > r.max[1] || b.max[1] < r.min[1])
 }
 
 func (n *node[N, T]) chooseLeastEnlargement(ir *rect[N]) (index int) {
-	rects := n.rects[:int(n.count)]
+	rects := n.rects[:n.count]
 	var j = -1
 	var jenlargement N
 	var jarea N
@@ -353,23 +339,10 @@ func (n *node[N, T]) chooseLeastEnlargement(ir *rect[N]) (index int) {
 	return j
 }
 
-func fmin[N numeric](a, b N) N {
-	if a < b {
-		return a
-	}
-	return b
-}
-func fmax[N numeric](a, b N) N {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // unionedArea returns the area of two rects expanded
 func (r *rect[N]) unionedArea(b *rect[N]) N {
-	return (fmax(r.max[0], b.max[0]) - fmin(r.min[0], b.min[0])) *
-		(fmax(r.max[1], b.max[1]) - fmin(r.min[1], b.min[1]))
+	return (max(r.max[0], b.max[0]) - min(r.min[0], b.min[0])) *
+		(max(r.max[1], b.max[1]) - min(r.min[1], b.min[1]))
 }
 
 func (r rect[N]) largestAxis() (axis int) {
@@ -379,7 +352,8 @@ func (r rect[N]) largestAxis() (axis int) {
 	return 0
 }
 
-func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N], left *node[N, T],
+func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N],
+	left *node[N, T],
 ) (right *node[N, T]) {
 	axis := r.largestAxis()
 	right = tr.newNode(left.leaf())
@@ -440,14 +414,14 @@ func (tr *RTreeGN[N, T]) moveRectAtIndexInto(from *node[N, T], index int,
 	into.count++
 }
 
-func (n *node[N, T]) search(target rect[N],
+func (n *node[N, T]) search(target *rect[N],
 	iter func(min, max [2]N, data T) bool,
 ) bool {
 	rects := n.rects[:n.count]
 	if n.leaf() {
 		items := n.items()
 		for i := 0; i < len(rects); i++ {
-			if rects[i].intersects(&target) {
+			if rects[i].intersects(target) {
 				if !iter(rects[i].min, rects[i].max, items[i]) {
 					return false
 				}
@@ -480,7 +454,7 @@ func (tr *RTreeGN[N, T]) Search(min, max [2]N,
 		return
 	}
 	if target.intersects(&tr.rect) {
-		tr.root.search(target, iter)
+		tr.root.search(&target, iter)
 	}
 }
 
@@ -637,8 +611,8 @@ func compare[T any](a, b T) bool {
 	return (any)(a) == (any)(b)
 }
 
-func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N], data T,
-	reinsert *[]*node[N, T],
+func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
+	data T, reinsert *[]*node[N, T],
 ) (removed, shrunk bool) {
 	rects := n.rects[:n.count]
 	if n.leaf() {
@@ -947,11 +921,11 @@ func BoxDist[N numeric, T any](targetMin, targetMax [2]N,
 
 func (r *rect[N]) boxDist(b *rect[N]) N {
 	var dist N
-	squared := fmax(r.min[0], b.min[0]) - fmin(r.max[0], b.max[0])
+	squared := max(r.min[0], b.min[0]) - min(r.max[0], b.max[0])
 	if squared > 0 {
 		dist += squared * squared
 	}
-	squared = fmax(r.min[1], b.min[1]) - fmin(r.max[1], b.max[1])
+	squared = max(r.min[1], b.min[1]) - min(r.max[1], b.max[1])
 	if squared > 0 {
 		dist += squared * squared
 	}
@@ -1153,7 +1127,8 @@ func (tr *RTree) Bounds() (min, max [2]float64) {
 // then the root nodes should be returned.
 // The reuse buffer is an empty length slice that can optionally be used
 // to avoid extra allocations.
-func (tr *RTree) Children(parent any, reuse []child.Child) (children []child.Child) {
+func (tr *RTree) Children(parent any, reuse []child.Child,
+) (children []child.Child) {
 	return tr.base.children(parent, reuse)
 }
 
