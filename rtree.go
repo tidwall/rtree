@@ -49,7 +49,6 @@ type RTreeGN[N numeric, T any] struct {
 	count int
 	rect  rect[N]
 	root  *node[N, T]
-	empty T
 	qpool *sync.Pool
 }
 
@@ -399,12 +398,13 @@ func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N],
 func (tr *RTreeGN[N, T]) moveRectAtIndexInto(from *node[N, T], index int,
 	into *node[N, T],
 ) {
+	var empty T
 	into.rects[into.count] = from.rects[index]
 	from.rects[index] = from.rects[from.count-1]
 	if from.leaf() {
 		into.items()[into.count] = from.items()[index]
 		from.items()[index] = from.items()[from.count-1]
-		from.items()[from.count-1] = tr.empty
+		from.items()[from.count-1] = empty
 	} else {
 		into.children()[into.count] = from.children()[index]
 		from.children()[index] = from.children()[from.count-1]
@@ -614,6 +614,7 @@ func compare[T any](a, b T) bool {
 func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 	data T, reinsert *[]*node[N, T],
 ) (removed, shrunk bool) {
+	var empty T
 	rects := n.rects[:n.count]
 	if n.leaf() {
 		items := n.items()
@@ -627,7 +628,7 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 					n.rects[i] = n.rects[n.count-1]
 					items[i] = items[n.count-1]
 				}
-				items[len(rects)-1] = tr.empty
+				items[len(rects)-1] = empty
 				n.count--
 				shrunk = ir.onedge(nr)
 				if shrunk {
@@ -808,6 +809,7 @@ func (tr *RTreeGN[N, T]) Nearby(
 	dist func(min, max [2]N, data T, item bool) N,
 	iter func(min, max [2]N, data T, dist N) bool,
 ) {
+	var empty T
 	if tr.root == nil {
 		return
 	}
@@ -846,7 +848,7 @@ func (tr *RTreeGN[N, T]) Nearby(
 				children := qn.node.children()[:qn.node.count]
 				for i := 0; i < len(children); i++ {
 					q.push(qnode[N, T]{
-						dist: dist(rects[i].min, rects[i].max, tr.empty, false),
+						dist: dist(rects[i].min, rects[i].max, empty, false),
 						rect: rects[i],
 						node: children[i],
 					})
