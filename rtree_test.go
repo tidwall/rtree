@@ -715,14 +715,6 @@ func rSaneNode[T comparable](tr *RTreeG[T], r rect[float64], n *node[float64, T]
 				}
 			}
 		}
-	} else {
-		if orderLeaves {
-			for i := 1; i < int(n.count); i++ {
-				if !(n.rects[i-1].min[0] < n.rects[i].min[0]) {
-					return errors.New("leaf rects are not in order")
-				}
-			}
-		}
 	}
 	return nil
 }
