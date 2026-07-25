@@ -36,7 +36,7 @@ const orderBranches = true
 const orderLeaves = true
 
 // copy-on-write atomic incrementer
-var gcow uint64
+var gcow atomic.Uint64
 
 type numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
@@ -488,8 +488,8 @@ func (n *node[N, T]) scan(iter func(min, max [2]N, data T) bool) bool {
 func (tr *RTreeGN[N, T]) Copy() *RTreeGN[N, T] {
 	tr2 := new(RTreeGN[N, T])
 	*tr2 = *tr
-	tr.icow = atomic.AddUint64(&gcow, 1)
-	tr2.icow = atomic.AddUint64(&gcow, 1)
+	tr.icow = gcow.Add(1)
+	tr2.icow = gcow.Add(1)
 	return tr2
 }
 
