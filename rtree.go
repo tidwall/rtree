@@ -587,18 +587,12 @@ func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T, eq func(T, T) bool,
 	if tr.root == nil || !tr.rect.contains(&ir) {
 		return false
 	}
-	var reinsert []*node[N, T]
 	tr.cow(&tr.root)
-	removed, _ := tr.nodeDelete(&tr.rect, tr.root, &ir, data, &reinsert, eq)
+	removed, _ := tr.nodeDelete(&tr.rect, tr.root, &ir, data, eq)
 	if !removed {
 		return false
 	}
 	tr.count--
-	if len(reinsert) > 0 {
-		for _, n := range reinsert {
-			tr.count -= n.deepCount()
-		}
-	}
 	if tr.count == 0 {
 		tr.root = nil
 		tr.rect.min = [2]N{0, 0}
@@ -606,11 +600,6 @@ func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T, eq func(T, T) bool,
 	} else {
 		for !tr.root.leaf() && tr.root.count == 1 {
 			tr.root = tr.root.children()[0]
-		}
-	}
-	if len(reinsert) > 0 {
-		for i := range reinsert {
-			tr.nodeReinsert(reinsert[i])
 		}
 	}
 	return true
@@ -621,7 +610,7 @@ func compare[T any](a, b T) bool {
 }
 
 func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
-	data T, reinsert *[]*node[N, T], eqfn func(T, T) bool,
+	data T, eqfn func(T, T) bool,
 ) (removed, shrunk bool) {
 	var empty T
 	rects := n.rects[:n.count]
@@ -665,13 +654,11 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 		}
 		crect := rects[i]
 		tr.cow(&children[i])
-		removed, shrunk = tr.nodeDelete(&rects[i], children[i], ir, data,
-			reinsert, eqfn)
+		removed, shrunk = tr.nodeDelete(&rects[i], children[i], ir, data, eqfn)
 		if !removed {
 			continue
 		}
 		if children[i].count == 0 {
-			*reinsert = append(*reinsert, children[i])
 			if orderBranches {
 				copy(n.rects[i:n.count], n.rects[i+1:n.count])
 				copy(children[i:n.count], children[i+1:n.count])
@@ -715,21 +702,6 @@ func (n *node[N, T]) deepCount() int {
 		count += children[i].deepCount()
 	}
 	return count
-}
-
-func (tr *RTreeGN[N, T]) nodeReinsert(n *node[N, T]) {
-	if n.leaf() {
-		rects := n.rects[:n.count]
-		items := n.items()[:n.count]
-		for i := range rects {
-			tr.Insert(rects[i].min, rects[i].max, items[i])
-		}
-	} else {
-		children := n.children()[:n.count]
-		for i := 0; i < len(children); i++ {
-			tr.nodeReinsert(children[i])
-		}
-	}
 }
 
 // onedge returns true when r is on the edge of b
