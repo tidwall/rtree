@@ -570,17 +570,26 @@ func (n *node[N, T]) qsort(s, e int, axis int, rev, max bool) {
 
 // Delete data from tree
 func (tr *RTreeGN[N, T]) Delete(min, max [2]N, data T) {
-	tr.delete(min, max, data)
+	tr.delete(min, max, data, nil)
 }
 
-func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T) bool {
+// DeleteEqual is the same as Delete but provides the additional 'eq' function
+// for doing a custom compare before acutally deleting the data.
+func (tr *RTreeGN[N, T]) DeleteEqual(min, max [2]N, keydata T,
+	eq func(T, T) bool,
+) {
+	tr.delete(min, max, keydata, eq)
+}
+
+func (tr *RTreeGN[N, T]) delete(min, max [2]N, data T, eq func(T, T) bool,
+) bool {
 	ir := rect[N]{min, max}
 	if tr.root == nil || !tr.rect.contains(&ir) {
 		return false
 	}
 	var reinsert []*node[N, T]
 	tr.cow(&tr.root)
-	removed, _ := tr.nodeDelete(&tr.rect, tr.root, &ir, data, &reinsert)
+	removed, _ := tr.nodeDelete(&tr.rect, tr.root, &ir, data, &reinsert, eq)
 	if !removed {
 		return false
 	}
@@ -612,30 +621,40 @@ func compare[T any](a, b T) bool {
 }
 
 func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
-	data T, reinsert *[]*node[N, T],
+	data T, reinsert *[]*node[N, T], eqfn func(T, T) bool,
 ) (removed, shrunk bool) {
 	var empty T
 	rects := n.rects[:n.count]
 	if n.leaf() {
 		items := n.items()
 		for i := 0; i < len(rects); i++ {
-			if ir.contains(&rects[i]) && compare(items[i], data) {
-				// found the target item to delete
-				if orderLeaves {
-					copy(n.rects[i:n.count], n.rects[i+1:n.count])
-					copy(items[i:n.count], items[i+1:n.count])
-				} else {
-					n.rects[i] = n.rects[n.count-1]
-					items[i] = items[n.count-1]
-				}
-				items[len(rects)-1] = empty
-				n.count--
-				shrunk = ir.onedge(nr)
-				if shrunk {
-					*nr = n.rect()
-				}
-				return true, shrunk
+			if !ir.contains(&rects[i]) {
+				continue
 			}
+			var eq bool
+			if eqfn != nil {
+				eq = eqfn(items[i], data)
+			} else {
+				eq = compare(items[i], data)
+			}
+			if !eq {
+				continue
+			}
+			// found the target item to delete
+			if orderLeaves {
+				copy(n.rects[i:n.count], n.rects[i+1:n.count])
+				copy(items[i:n.count], items[i+1:n.count])
+			} else {
+				n.rects[i] = n.rects[n.count-1]
+				items[i] = items[n.count-1]
+			}
+			items[len(rects)-1] = empty
+			n.count--
+			shrunk = ir.onedge(nr)
+			if shrunk {
+				*nr = n.rect()
+			}
+			return true, shrunk
 		}
 		return false, false
 	}
@@ -647,7 +666,7 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 		crect := rects[i]
 		tr.cow(&children[i])
 		removed, shrunk = tr.nodeDelete(&rects[i], children[i], ir, data,
-			reinsert)
+			reinsert, eqfn)
 		if !removed {
 			continue
 		}
@@ -725,7 +744,7 @@ func (tr *RTreeGN[N, T]) Replace(
 	oldMin, oldMax [2]N, oldData T,
 	newMin, newMax [2]N, newData T,
 ) {
-	if tr.delete(oldMin, oldMax, oldData) {
+	if tr.delete(oldMin, oldMax, oldData, nil) {
 		tr.Insert(newMin, newMax, newData)
 	}
 }
@@ -983,6 +1002,14 @@ func (tr *RTreeG[T]) Delete(min, max [2]float64, data T) {
 	tr.base.Delete(min, max, data)
 }
 
+// DeleteEqual is the same as Delete but provides the additional 'eq' function
+// for doing a custom compare before acutally deleting the data.
+func (tr *RTreeG[T]) DeleteEqual(min, max [2]float64, keydata T,
+	eq func(T, T) bool,
+) {
+	tr.base.DeleteEqual(min, max, keydata, eq)
+}
+
 // Replace an item.
 // If the old item does not exist then the new item is not inserted.
 func (tr *RTreeG[T]) Replace(
@@ -1066,6 +1093,7 @@ func (tr *RTreeG[T]) Clear() {
 }
 
 // Generic RTree
+//
 // Deprecated: use RTreeG
 type Generic[T any] struct {
 	RTreeG[T]
