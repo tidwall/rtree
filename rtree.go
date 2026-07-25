@@ -33,7 +33,6 @@ import (
 
 const maxEntries = 64
 const orderBranches = true
-const orderLeaves = true
 
 // copy-on-write atomic incrementer
 var gcow atomic.Uint64
@@ -237,11 +236,6 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 		}
 		items := n.items()
 		index := int(n.count)
-		if orderLeaves {
-			index = n.rsearch(ir.min[0])
-			copy(n.rects[index+1:int(n.count)+1], n.rects[index:int(n.count)])
-			copy(items[index+1:int(n.count)+1], items[index:int(n.count)])
-		}
 		n.rects[index] = *ir
 		items[index] = data
 		n.count++
@@ -382,15 +376,9 @@ func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N],
 			tr.moveRectAtIndexInto(left, int(left.count)-1, right)
 		}
 	}
-
-	if (orderBranches && !right.leaf()) || (orderLeaves && right.leaf()) {
-		// It's not uncommon that the nodes to be already ordered.
-		if !right.issorted() {
-			right.sort()
-		}
-		if !left.issorted() {
-			left.sort()
-		}
+	if orderBranches && !right.leaf() {
+		right.sort()
+		left.sort()
 	}
 	return right
 }
@@ -630,13 +618,8 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 				continue
 			}
 			// found the target item to delete
-			if orderLeaves {
-				copy(n.rects[i:n.count], n.rects[i+1:n.count])
-				copy(items[i:n.count], items[i+1:n.count])
-			} else {
-				n.rects[i] = n.rects[n.count-1]
-				items[i] = items[n.count-1]
-			}
+			n.rects[i] = n.rects[n.count-1]
+			items[i] = items[n.count-1]
 			items[len(rects)-1] = empty
 			n.count--
 			shrunk = ir.onedge(nr)
