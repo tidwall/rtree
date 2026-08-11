@@ -96,9 +96,14 @@ This implementation is a variant of the original paper:
 
 ### Inserting
 
-Similar to the original paper. From the root to the leaf, the rects which will incur the least enlargment are chosen. Ties go to rects with the smallest area. 
+Similar to the original paper. From the root to the leaf, the rects which will
+incur the least enlargment are chosen. Ties go to rects with the smallest area. 
 
-Added to this implementation: when a rect does not incur any enlargement at all, it's chosen immediately and without further checks on other rects in the same node. Also added is all child rectangles in every node are ordered by their minimum x value. This can dramatically speed up searching for intersecting rectangles on most modern hardware.
+Added to this implementation: Before the least enlargement process, each
+rect is looked at, and for rects that do not incur any enlargement at all, the
+one with the smallest area is choosen. Also added is all child rectangles in
+every node are ordered by their minimum x value. This can dramatically speed up
+searching for intersecting rectangles on most modern hardware.
 
 ### Deleting
 

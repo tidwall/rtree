@@ -34,6 +34,8 @@ import (
 const maxEntries = 64
 const orderBranches = true
 
+// const orderLeaves = true
+
 // copy-on-write atomic incrementer
 var gcow atomic.Uint64
 
@@ -243,16 +245,25 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 		return false, grown
 	}
 
-	// choose a subtree
-	// take a quick look for any nodes that contain the rect
+	// Choose a subtree
+	// First take a quick look for any nodes that fully contain the rect.
+	// If any, use the node that is the smallest.
+	rects := n.rects[:n.count]
 	index := -1
-	for i := 0; i < int(n.count); i++ {
-		if n.rects[i].contains(ir) {
-			index = i
-			break
+	var narea N
+	for i := 0; i < len(rects); i++ {
+		if rects[i].contains(ir) {
+			area := rects[i].area()
+			if index == -1 || area < narea {
+				index = i
+				narea = area
+			}
 		}
 	}
 	if index == -1 {
+		// There are no nodes that fully contain the rect.
+		// Choose the node that will have the least enlargement when unioned
+		// with the new rect.
 		index = n.chooseLeastEnlargement(ir)
 	}
 
