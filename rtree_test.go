@@ -609,6 +609,18 @@ func TestSane(t *testing.T) {
 	}
 }
 
+func (n *node[N, T]) deepCount() int {
+	if n.leaf() {
+		return int(n.count)
+	}
+	var count int
+	children := n.children()[:n.count]
+	for i := 0; i < len(children); i++ {
+		count += children[i].deepCount()
+	}
+	return count
+}
+
 func rSane[T comparable](tr *RTreeG[T]) error {
 	if tr.base.root == nil {
 		if tr.base.count != 0 {
@@ -706,13 +718,6 @@ func rSaneNode[T comparable](tr *RTreeG[T], r rect[float64], n *node[float64, T]
 			err := rSaneNode(tr, n.rects[i], n.children()[i], height-1, false)
 			if err != nil {
 				return err
-			}
-		}
-		if orderBranches {
-			for i := 1; i < int(n.count); i++ {
-				if !(n.rects[i-1].min[0] < n.rects[i].min[0]) {
-					return errors.New("branch rects are not in order")
-				}
 			}
 		}
 	}

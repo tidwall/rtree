@@ -32,9 +32,6 @@ import (
 // node kind is a `leaf` or `branch`.
 
 const maxEntries = 64
-const orderBranches = true
-
-// const orderLeaves = true
 
 // copy-on-write atomic incrementer
 var gcow atomic.Uint64
@@ -160,16 +157,10 @@ func (tr *RTreeGN[N, T]) Insert(min, max [2]N, data T) {
 		tr.root.children()[1] = right
 		tr.root.count = 2
 		tr.Insert(min, max, data)
-		if orderBranches {
-			tr.root.sort()
-		}
 		return
 	}
 	if grown {
 		tr.rect.expand(&ir)
-		if orderBranches && !tr.root.leaf() {
-			tr.root.sort()
-		}
 	}
 	tr.count++
 }
@@ -177,22 +168,6 @@ func (tr *RTreeGN[N, T]) Insert(min, max [2]N, data T) {
 func (tr *RTreeGN[N, T]) splitNode(r rect[N], left *node[N, T],
 ) (right *node[N, T]) {
 	return tr.splitNodeLargestAxisEdgeSnap(r, left)
-}
-
-func (n *node[N, T]) orderToRight(idx int) int {
-	for idx < int(n.count)-1 && n.rects[idx+1].min[0] < n.rects[idx].min[0] {
-		n.swap(idx+1, idx)
-		idx++
-	}
-	return idx
-}
-
-func (n *node[N, T]) orderToLeft(idx int) int {
-	for idx > 0 && n.rects[idx].min[0] < n.rects[idx-1].min[0] {
-		n.swap(idx, idx-1)
-		idx--
-	}
-	return idx
 }
 
 // This operation should not be inlined because it's expensive and rarely
@@ -219,16 +194,6 @@ func (tr *RTreeGN[N, T]) cow(n **node[N, T]) {
 	}
 }
 
-func (n *node[N, T]) rsearch(key N) int {
-	rects := n.rects[:n.count]
-	for i := 0; i < len(rects); i++ {
-		if !(n.rects[i].min[0] < key) {
-			return i
-		}
-	}
-	return int(n.count)
-}
-
 func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 	data T,
 ) (split, grown bool) {
@@ -247,17 +212,12 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 
 	// Choose a subtree
 	// First take a quick look for any nodes that fully contain the rect.
-	// If any, use the node that is the smallest.
 	rects := n.rects[:n.count]
 	index := -1
-	var narea N
 	for i := 0; i < len(rects); i++ {
 		if rects[i].contains(ir) {
-			area := rects[i].area()
-			if index == -1 || area < narea {
-				index = i
-				narea = area
-			}
+			index = i
+			break
 		}
 	}
 	if index == -1 {
@@ -278,32 +238,14 @@ func (tr *RTreeGN[N, T]) nodeInsert(nr *rect[N], n *node[N, T], ir *rect[N],
 		left := children[index]
 		right := tr.splitNode(n.rects[index], left)
 		n.rects[index] = left.rect()
-		if orderBranches {
-			copy(n.rects[index+2:int(n.count)+1],
-				n.rects[index+1:int(n.count)])
-			copy(children[index+2:int(n.count)+1],
-				children[index+1:int(n.count)])
-			n.rects[index+1] = right.rect()
-			children[index+1] = right
-			n.count++
-			if n.rects[index].min[0] > n.rects[index+1].min[0] {
-				n.swap(index+1, index)
-			}
-			index++
-			_ = n.orderToRight(index)
-		} else {
-			n.rects[n.count] = right.rect()
-			children[n.count] = right
-			n.count++
-		}
+		n.rects[n.count] = right.rect()
+		children[n.count] = right
+		n.count++
 		return tr.nodeInsert(nr, n, ir, data)
 	}
 	if grown {
-		// The child rectangle must expand to accomadate the new item.
+		// The child rectangle must expand to accommodate the new item.
 		n.rects[index].expand(ir)
-		if orderBranches {
-			n.orderToLeft(index)
-		}
 		grown = !nr.contains(ir)
 	}
 	return false, grown
@@ -313,16 +255,28 @@ func (r *rect[N]) area() N {
 	return (r.max[0] - r.min[0]) * (r.max[1] - r.min[1])
 }
 
+// convert a bool to a byte
+func tb(t bool) byte {
+	if t {
+		return 1
+	}
+	return 0
+}
+
 // contains return struct when b is fully contained inside of n
 func (r *rect[N]) contains(b *rect[N]) bool {
-	return !(b.min[0] < r.min[0] || b.max[0] > r.max[0] ||
-		b.min[1] < r.min[1] || b.max[1] > r.max[1])
+	return tb(b.min[0] < r.min[0])|tb(b.max[0] > r.max[0])|
+		tb(b.min[1] < r.min[1])|tb(b.max[1] > r.max[1]) == 0
+	// return !(b.min[0] < r.min[0] || b.max[0] > r.max[0] ||
+	// 	b.min[1] < r.min[1] || b.max[1] > r.max[1])
 }
 
 // intersects returns true if both rects intersect each other.
 func (r *rect[N]) intersects(b *rect[N]) bool {
-	return !(b.min[0] > r.max[0] || b.max[0] < r.min[0] ||
-		b.min[1] > r.max[1] || b.max[1] < r.min[1])
+	return tb(b.min[0] > r.max[0])|tb(b.max[0] < r.min[0])|
+		tb(b.min[1] > r.max[1])|tb(b.max[1] < r.min[1]) == 0
+	// return !(b.min[0] > r.max[0] || b.max[0] < r.min[0] ||
+	// 	b.min[1] > r.max[1] || b.max[1] < r.min[1])
 }
 
 func (n *node[N, T]) chooseLeastEnlargement(ir *rect[N]) (index int) {
@@ -386,10 +340,6 @@ func (tr *RTreeGN[N, T]) splitNodeLargestAxisEdgeSnap(r rect[N],
 		for right.count < 2 {
 			tr.moveRectAtIndexInto(left, int(left.count)-1, right)
 		}
-	}
-	if orderBranches && !right.leaf() {
-		right.sort()
-		left.sort()
 	}
 	return right
 }
@@ -504,20 +454,6 @@ func (n *node[N, T]) swap(i, j int) {
 
 func (n *node[N, T]) sortByAxis(axis int, rev, max bool) {
 	n.qsort(0, int(n.count), axis, rev, max)
-}
-
-func (n *node[N, T]) sort() {
-	n.qsort(0, int(n.count), 0, false, false)
-}
-
-func (n *node[N, T]) issorted() bool {
-	rects := n.rects[:n.count]
-	for i := 1; i < len(rects); i++ {
-		if rects[i].min[0] < rects[i-1].min[0] {
-			return false
-		}
-	}
-	return true
 }
 
 func (n *node[N, T]) qsort(s, e int, axis int, rev, max bool) {
@@ -653,13 +589,8 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 			continue
 		}
 		if children[i].count == 0 {
-			if orderBranches {
-				copy(n.rects[i:n.count], n.rects[i+1:n.count])
-				copy(children[i:n.count], children[i+1:n.count])
-			} else {
-				n.rects[i] = n.rects[n.count-1]
-				children[i] = children[n.count-1]
-			}
+			n.rects[i] = n.rects[n.count-1]
+			children[i] = children[n.count-1]
 			children[n.count-1] = nil
 			n.count--
 			*nr = n.rect()
@@ -669,9 +600,6 @@ func (tr *RTreeGN[N, T]) nodeDelete(nr *rect[N], n *node[N, T], ir *rect[N],
 			shrunk = !rects[i].equals(&crect)
 			if shrunk {
 				*nr = n.rect()
-			}
-			if orderBranches {
-				_ = n.orderToRight(i)
 			}
 		}
 		return true, shrunk
@@ -686,22 +614,12 @@ func (r *rect[N]) equals(b *rect[N]) bool {
 		r.max[1] < b.max[1] || r.max[1] > b.max[1])
 }
 
-func (n *node[N, T]) deepCount() int {
-	if n.leaf() {
-		return int(n.count)
-	}
-	var count int
-	children := n.children()[:n.count]
-	for i := 0; i < len(children); i++ {
-		count += children[i].deepCount()
-	}
-	return count
-}
-
 // onedge returns true when r is on the edge of b
 func (r *rect[N]) onedge(b *rect[N]) bool {
-	return !(r.min[0] > b.min[0] && r.min[1] > b.min[1] &&
-		r.max[0] < b.max[0] && r.max[1] < b.max[1])
+	return tb(r.min[0] > b.min[0])+tb(r.min[1] > b.min[1])+
+		tb(r.max[0] < b.max[0])+tb(r.max[1] < b.max[1]) != 4
+	// return !(r.min[0] > b.min[0] && r.min[1] > b.min[1] &&
+	// 	r.max[0] < b.max[0] && r.max[1] < b.max[1])
 }
 
 // Replace an item.
