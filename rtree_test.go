@@ -952,5 +952,22 @@ func TestNearby(t *testing.T) {
 			t.Fatalf("expected %s, got %d", exp, output)
 		}
 	})
-
+	t.Run("GN-unsigned", func(t *testing.T) {
+		var output []uint
+		var tr RTreeGN[uint, uint]
+		tr.Insert([2]uint{20, 20}, [2]uint{40, 40}, 1)
+		tr.Insert([2]uint{36, 20}, [2]uint{36, 20}, 2)
+		tr.Insert([2]uint{0, 0}, [2]uint{100, 5}, 3)
+		tr.Nearby(
+			BoxDist[uint, uint]([2]uint{10, 10}, [2]uint{30, 30}, nil),
+			func(min, max [2]uint, data uint, dist uint) bool {
+				output = append(output, data, dist)
+				return true
+			},
+		)
+		exp := "[1 0 3 25 2 36]"
+		if fmt.Sprintf("%d", output) != exp {
+			t.Fatalf("expected %s, got %d", exp, output)
+		}
+	})
 }

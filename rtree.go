@@ -826,13 +826,14 @@ func BoxDist[N numeric, T any](targetMin, targetMax [2]N,
 
 func (r *rect[N]) boxDist(b *rect[N]) N {
 	var dist N
-	squared := max(r.min[0], b.min[0]) - min(r.max[0], b.max[0])
-	if squared > 0 {
-		dist += squared * squared
+	// Compare before subtracting because N may be an unsigned type.
+	amin, amax := max(r.min[0], b.min[0]), min(r.max[0], b.max[0])
+	if amin > amax {
+		dist += (amin - amax) * (amin - amax)
 	}
-	squared = max(r.min[1], b.min[1]) - min(r.max[1], b.max[1])
-	if squared > 0 {
-		dist += squared * squared
+	amin, amax = max(r.min[1], b.min[1]), min(r.max[1], b.max[1])
+	if amin > amax {
+		dist += (amin - amax) * (amin - amax)
 	}
 	return dist
 }
